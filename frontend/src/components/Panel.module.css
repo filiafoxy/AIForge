@@ -1,0 +1,23 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: clamp(var(--space-3), 4vw, var(--space-4));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  /* Высота шапки не прыгает, когда кнопка действия появляется или исчезает. */
+  min-height: var(--control-height);
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  line-height: 1.25;
+}

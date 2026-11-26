@@ -1,0 +1,10 @@
+node_modules/
+dist/
+
+# Локальные настройки окружения; образец — .env.example
+.env
+.env.local
+.env.*.local
+
+*.log
+*.tsbuildinfo
