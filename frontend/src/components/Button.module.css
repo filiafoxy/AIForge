@@ -41,6 +41,13 @@
   background: var(--color-accent-soft);
 }
 
+/* Кнопка-переключатель во включённом состоянии. */
+.secondary[aria-pressed='true'] {
+  border-color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-stronger);
+}
+
 .spinner {
   flex: none;
   width: 1em;

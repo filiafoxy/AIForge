@@ -1,0 +1,50 @@
+.action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* На телефоне кнопка во всю ширину, на широком экране — по содержимому. */
+@media (min-width: 600px) {
+  .action {
+    align-items: flex-start;
+  }
+}
+
+/* Лента лежит прямо на фоне страницы, без общей карточки: на узком экране сообщениям нужна вся ширина. */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.chatHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.chatTitle {
+  font-size: var(--font-size-lg);
+  line-height: 1.25;
+}
+
+.context {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  color: var(--color-text-muted);
+}
+
+.composer {
+  /* После прокрутки поле ввода не прилипает к нижнему краю экрана. */
+  scroll-margin-bottom: var(--space-3);
+}
