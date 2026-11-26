@@ -1,5 +1,6 @@
-// Адреса внешних сервисов (FR-ENV).
+// Адреса внешних сервисов (FR-15).
 // Единственное место, где читаются переменные VITE_*; значений по умолчанию в коде нет.
+// Чтобы перейти с Mock ML на рабочий сервис, достаточно поменять значение VITE_MOCK_ML_URL.
 
 function normalizeBaseUrl(value: string | undefined): string | null {
   const trimmed = value?.trim().replace(/\/+$/, '') ?? '';

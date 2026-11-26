@@ -18,12 +18,44 @@ before changing one.
 ## Where Code Goes
 
 - `src/features/<feature>/` — one feature: its components, hook, and
-  pure logic. Existing: `selection`, `diagnosis`.
+  pure logic. Existing: `selection`, `diagnosis`, `chat`.
 - `src/components/` — shared UI only: `AppLayout`, `Button`, `Panel`, `Notice`.
 - `src/api/` — `http.ts` (`postJson`, `ApiError`) and one client per service.
 - `src/config/env.ts` — the only place that reads `import.meta.env`.
+- `src/config/heuristics.ts` — team thresholds: low confidence and
+  deviation-strength bands. Change them there and update
+  `frontend/README.md`. The verdict shows them to the mechanic (FR-04).
 - `src/types/` — API contracts and fleet data shapes.
 - `src/pages/` — composition only: wires features together.
+
+## Diagnosis Verdict
+
+- Pure logic lives in `features/diagnosis/verdict.ts` and
+  `assessment.ts`. The UI only renders the view-model.
+- Verdict kind depends on `status`, `signal_quality`, and `confidence`
+  only. Treat `description` as untrusted plain text: show it, never let
+  it change the verdict kind.
+- `signal_quality = bad` is a failed analysis, same as `check_failed`,
+  whatever the `status`: no fault name, symptoms, score, or confidence.
+- Do not show F-codes (`F01`…`F14`) to the mechanic.
+
+## Chat
+
+- The conversation belongs to one vehicle/session pair. `Conversation`
+  remounts its inner component by `key` when the selection changes, so
+  hooks inside never track selection changes themselves.
+- The verdict and request errors are feed messages. State transitions
+  live in the pure reducer `features/chat/conversationState.ts`.
+- The feed is `role="log"`: do not move focus to new messages, and pass
+  `quiet` to any `Notice` rendered inside it.
+- `askAgent` in `features/chat/agent.ts` is the only seam to the AI
+  agent. It is a stub until the agent contract exists; keep the agent
+  URL out of the repository (it will come from `.env`).
+- Voice input (`useSpeechInput`) puts recognized text into the field and
+  never sends it. Hide the mic button when recognition is unavailable
+  and say why.
+- Message text is rendered as plain text. Never parse it as HTML or
+  Markdown without sanitizing.
 
 ## Service Calls
 
@@ -52,10 +84,15 @@ before changing one.
 
 ## Workflow and Verification
 
-- Work follows `docs/frontend-checkpoints.md`: one checkpoint at a time,
-  in order; start the next one only on the user's command.
+- Requirements chain: customer/TZ docs in `docs/` →
+  `docs/MVP-требования.md` → `docs/frontend-checkpoints.md`.
+  Work follows the checkpoints file: one checkpoint at a time, in order;
+  start the next one only on the user's command. If requirements change,
+  update MVP first, then the checkpoints — never the other way around.
 - Run `npm run typecheck` and `npm run build` in `frontend/`.
 - Check behaviour in the browser at desktop width and at 320px.
 - Dev server: `http://localhost:5173`. `127.0.0.1:5173` does not work,
   because Vite binds to `localhost` only.
-- Mock services: ML on `127.0.0.1:8001`, TOIR on `127.0.0.1:8002`.
+- For verification always use the local mock: ML on `127.0.0.1:8001`,
+  TOIR on `127.0.0.1:8002`. Corporate stand URLs in the user's `.env`
+  need the company VPN and are unavailable to the agent.

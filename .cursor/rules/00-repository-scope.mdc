@@ -30,7 +30,11 @@ only in local working copies; a fresh clone does not have them:
 Rules for them:
 
 - Treat them as the source of truth for requirements and API contracts.
-- Read them; never modify them and never add them to git.
+- Never add them to git.
+- Do not edit them unless the user explicitly asks. When requirements
+  change, update in this order: customer/TZ sources in `docs/` →
+  `docs/MVP-требования.md` → `docs/frontend-checkpoints.md`. Do not
+  rewrite checkpoints directly from the PDF and skip the MVP file.
 - The only mock material kept in git is the copy of the two data files
   in `frontend/src/data/` (approved by the user: the frontend cannot
   build or list vehicles without them).
