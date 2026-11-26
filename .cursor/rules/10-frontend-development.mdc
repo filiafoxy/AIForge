@@ -1,0 +1,76 @@
+---
+description: Frontend architecture and development rules
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# Frontend Development
+
+## Technology Stack
+
+- Inspect `frontend/package.json` before choosing libraries.
+- Use the existing framework, language, and tooling.
+- Do not assume that a dependency is installed.
+- Do not introduce new dependencies without user approval.
+
+## Architecture
+
+- Follow the existing project architecture.
+- Keep UI, business logic, API communication,
+  and reusable utilities separated when appropriate.
+- Organize related functionality into cohesive modules.
+- Prefer feature-oriented organization when it fits
+  the existing project.
+- Avoid unrelated refactoring.
+
+## Components
+
+- Components should have a clear responsibility.
+- Keep component props explicit and understandable.
+- Extract reusable components when they provide
+  meaningful reuse or simplify complex UI.
+- Do not create components for trivial markup
+  without a clear benefit.
+- Avoid placing API calls, business logic,
+  and large UI structures into one component.
+
+## Functions and Modules
+
+- Use descriptive names for functions, variables,
+  components, and files.
+- Prefer small, cohesive functions.
+- Keep inputs, outputs, and side effects clear.
+- Avoid hidden dependencies and unnecessary global state.
+- Avoid duplicated business logic.
+- Avoid circular dependencies.
+
+## API Integration
+
+- Inspect existing API clients and backend contracts.
+- Do not invent endpoints or response structures.
+- Keep API integration consistent with existing patterns.
+- If the backend contract is unknown, ask the user
+  or use explicitly identified mock data.
+
+## Code Changes
+
+- Modify only files necessary for the task.
+- Reuse existing utilities and components.
+- Do not rewrite entire files when a focused change
+  is sufficient.
+- Preserve existing behavior unless the task requires
+  changing it.
+
+## Validation
+
+Use the validation commands defined in `package.json`.
+
+Run relevant checks when available:
+
+- lint
+- typecheck
+- tests
+- build
+
+Do not claim that a check passed unless it was run
+successfully.

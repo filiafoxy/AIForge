@@ -1,0 +1,175 @@
+---
+description: Rules for logical chunks and semantic anchors in frontend code
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# AI-Friendly Code: Chunks and Anchors
+
+## Goal
+
+Organize frontend code so that an AI agent can quickly:
+
+- Locate the relevant functionality.
+- Understand a logical part of the code independently.
+- Identify its inputs, outputs, dependencies, and side effects.
+- Modify one part without accidentally changing unrelated code.
+
+Do not optimize code organization for line count alone.
+
+## 1. Logical Chunks
+
+A chunk is a cohesive, logically complete unit of code
+with a clear responsibility.
+
+A chunk may be:
+
+- A function.
+- A React component.
+- A custom hook.
+- A service or API module.
+- A validation or transformation module.
+- A group of closely related functions.
+
+Each chunk should have:
+
+1. A clear purpose.
+2. A descriptive name.
+3. Understandable inputs and outputs.
+4. Explicit dependencies when practical.
+5. A limited and predictable responsibility.
+
+## 2. Chunk Boundaries
+
+- Keep code that changes together close together.
+- Separate unrelated responsibilities.
+- Separate UI, API communication, and business logic
+  when doing so improves clarity.
+- Prefer cohesive modules over large files containing
+  unrelated functionality.
+- Do not create a new file for every small function.
+- Do not split code if doing so makes the flow harder
+  to understand or introduces unnecessary indirection.
+
+## 3. Chunk Size
+
+Use size as a signal, not as a strict limit.
+
+- Functions over approximately 50 lines should be
+  reviewed for multiple responsibilities.
+- Files over approximately 250 lines should be
+  reviewed for possible logical separation.
+- Large components should be reviewed for extractable
+  UI sections, hooks, or business logic.
+
+These thresholds are not mandatory limits.
+
+Do not split code solely to satisfy a line count.
+Keep cohesive algorithms together when appropriate.
+
+## 4. Semantic Anchors
+
+An anchor is a stable, meaningful entry point
+that helps locate a specific functionality.
+
+Prefer these anchors in this order:
+
+1. File and folder names.
+2. Exported functions, components, hooks, and types.
+3. Public module interfaces.
+4. Descriptive section comments for complex flows.
+
+Use explicit anchor comments only when they provide
+navigation value beyond the existing code structure.
+
+## 5. Explicit Anchor Format
+
+For important flows inside large or complex files,
+use this format:
+
+// @anchor: auth.login
+// Purpose: Handles the user login flow.
+
+Use a unique, descriptive, lowercase identifier
+with dot-separated segments.
+
+Examples:
+
+// @anchor: auth.login
+// @anchor: auth.refresh-token
+// @anchor: users.profile.update
+// @anchor: payments.checkout
+
+Place the anchor immediately before the relevant
+function, component, or logical section.
+
+Do not use line numbers in anchors.
+Do not use temporary or vague identifiers such as
+anchor-1, section-2, or helper.
+
+## 6. When to Add an Anchor
+
+Add an explicit anchor when:
+
+- A file contains several important logical sections.
+- A complex workflow has multiple related functions.
+- A feature has a non-obvious entry point.
+- The same functionality is frequently referenced
+  during AI-assisted development.
+- A module is large enough that ordinary symbol
+  navigation is insufficient.
+
+Do not add explicit anchors to every function,
+component, or file.
+
+For small and well-organized modules, descriptive
+names are sufficient.
+
+## 7. Anchor Maintenance
+
+When changing code:
+
+- Preserve existing anchors when their meaning
+  remains unchanged.
+- Update an anchor if the responsibility changes.
+- Remove anchors for deleted functionality.
+- Do not duplicate anchor identifiers.
+- Do not leave anchors pointing to unrelated code.
+- Do not create an anchor registry unless the project
+  becomes large enough to benefit from one.
+
+## 8. Documentation
+
+For complex modules, add or update a local README.md
+or module documentation describing:
+
+- Module purpose.
+- Main entry points.
+- Important anchors.
+- Dependencies and data flow.
+- Important constraints or business rules.
+
+Keep documentation concise and synchronized
+with the implementation.
+
+## 9. Before Creating New Files
+
+Before creating a file:
+
+1. Check whether a suitable module already exists.
+2. Check whether the functionality belongs to an
+   existing feature.
+3. Decide whether the new code is cohesive enough
+   to justify a separate file.
+4. Use a descriptive file name.
+5. Avoid creating duplicate utilities or abstractions.
+
+## 10. Final Review
+
+After implementing a task:
+
+- Check whether the changed code remains cohesive.
+- Check whether any large file should be split.
+- Check whether important new flows need anchors.
+- Check whether existing anchors remain accurate.
+- Avoid unrelated restructuring.

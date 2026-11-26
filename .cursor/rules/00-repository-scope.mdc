@@ -1,0 +1,46 @@
+---
+description: Repository-wide collaboration rules and file ownership boundaries
+alwaysApply: true
+---
+
+# Repository Scope
+
+This is a shared hackathon repository.
+
+The user is responsible for frontend development.
+The frontend is located in the `frontend/` directory.
+
+## Ownership
+
+- Make frontend changes inside `frontend/` by default.
+- Do not modify backend code or files owned by other contributors.
+- Do not modify root-level configuration files without
+  a clear frontend requirement.
+- If a task requires changes outside `frontend/`,
+  explain why and ask the user for permission first.
+
+## Collaboration Safety
+
+- Preserve existing work from other contributors.
+- Do not overwrite or revert unrelated changes.
+- Do not run destructive Git commands.
+- Do not commit or push unless explicitly requested.
+- Do not change shared configuration just to simplify
+  a local implementation.
+
+## Workflow
+
+Before implementing a non-trivial task:
+
+1. Inspect the relevant files.
+2. Identify the existing implementation patterns.
+3. Determine the minimal set of files to change.
+4. Explain the plan briefly.
+5. Implement only the requested functionality.
+
+After implementation:
+
+1. Review the diff.
+2. Check for unrelated modifications.
+3. Run available frontend checks.
+4. Report changed files and validation results.
