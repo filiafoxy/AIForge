@@ -22,6 +22,10 @@
   --color-disabled-bg: #e3e5df;
   --color-disabled-text: #737b83;
 
+  --color-success-bg: #e6f3e9;
+  --color-success-border: #4f9a63;
+  --color-success-text: #1c5a2c;
+
   --color-warning-bg: #fff4d6;
   --color-warning-border: #dfae3a;
   --color-warning-text: #5a4200;
