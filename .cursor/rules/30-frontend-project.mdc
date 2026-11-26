@@ -1,0 +1,61 @@
+---
+description: Project-specific frontend decisions — stack, folder layout, service calls, data files, UI, verification
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# Frontend Project Conventions
+
+Decisions already made for this project. Follow them, and ask the user
+before changing one.
+
+## Stack
+
+- React 19, Vite 8, TypeScript (strict).
+- Styling: CSS Modules plus design tokens in `src/styles/tokens.css`.
+- No UI kit, router, state manager, test runner, or linter is installed.
+
+## Where Code Goes
+
+- `src/features/<feature>/` — one feature: its components, hook, and
+  pure logic. Existing: `selection`, `diagnosis`.
+- `src/components/` — shared UI only: `AppLayout`, `Button`, `Panel`, `Notice`.
+- `src/api/` — `http.ts` (`postJson`, `ApiError`) and one client per service.
+- `src/config/env.ts` — the only place that reads `import.meta.env`.
+- `src/types/` — API contracts and fleet data shapes.
+- `src/pages/` — composition only: wires features together.
+
+## Service Calls
+
+- Service URLs come only from `.env` (`VITE_MOCK_ML_URL`,
+  `VITE_MOCK_TOIR_URL`). No fallback URLs in code.
+- API code throws `ApiError` with a `kind`; the feature maps `kind` to
+  user-facing text. No UI strings in `src/api/`.
+- Check every external response with a type guard before using it.
+- A diagnosis result comes only from the ML service. `Session` holds just
+  `session_id` and `checked_at` on purpose; do not read results from
+  `vehicles.json`.
+
+## Data Files
+
+- `src/data/vehicles.json` and `src/data/fault_types.json` are byte-for-byte
+  copies of `neurodvs_mock/data/`. Never edit them by hand; copy them again
+  when the mock data changes.
+
+## UI
+
+- Interface text is Russian, in plain words a mechanic understands.
+- Mobile-first: works from 320px wide without horizontal scrolling.
+- Interactive targets are at least `--control-height` (44px) tall.
+- Prefer native controls; every input has a visible label; errors and
+  warnings use `Notice`.
+
+## Workflow and Verification
+
+- Work follows `docs/frontend-checkpoints.md`: one checkpoint at a time,
+  in order; start the next one only on the user's command.
+- Run `npm run typecheck` and `npm run build` in `frontend/`.
+- Check behaviour in the browser at desktop width and at 320px.
+- Dev server: `http://localhost:5173`. `127.0.0.1:5173` does not work,
+  because Vite binds to `localhost` only.
+- Mock services: ML on `127.0.0.1:8001`, TOIR on `127.0.0.1:8002`.

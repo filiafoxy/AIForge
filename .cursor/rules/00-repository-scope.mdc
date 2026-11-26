@@ -19,6 +19,22 @@ The frontend is located in the `frontend/` directory.
 - If a task requires changes outside `frontend/`,
   explain why and ask the user for permission first.
 
+## Local-Only Materials
+
+The repository is public. Two directories are gitignored and exist
+only in local working copies; a fresh clone does not have them:
+
+- `docs/` — MVP requirements and frontend checkpoints.
+- `neurodvs_mock/` — mock ML and TOIR services, OpenAPI specs, test data.
+
+Rules for them:
+
+- Treat them as the source of truth for requirements and API contracts.
+- Read them; never modify them and never add them to git.
+- The only mock material kept in git is the copy of the two data files
+  in `frontend/src/data/` (approved by the user: the frontend cannot
+  build or list vehicles without them).
+
 ## Collaboration Safety
 
 - Preserve existing work from other contributors.
