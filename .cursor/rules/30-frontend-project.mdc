@@ -131,8 +131,9 @@ before changing one.
   conversation (`loadDiagnosisInBackground` in `useConversation`; no
   pending flag, no error in the feed, retried by the next question) and
   stores the result in `ConversationState.diagnosis`. `findTicketAnchor`
-  puts the button under the latest conclusion: a button-flow answer
-  (`analysisOf`), else an answer with a draft, else the latest answer.
+  puts the button under the latest answer that is a conclusion: a
+  button-flow answer (`analysisOf`) or an answer with a draft (only when
+  the diagnosis is known). A plain answer never gets the button.
   Keep it a single button per conversation.
 - `POST /tickets` is sent only from the review step, by the explicit
   confirm button, with exactly the request shown there. Editing or
@@ -237,8 +238,12 @@ before changing one.
 - Run `npm run typecheck` and `npm run build` in `frontend/`.
 - Check behaviour in the browser at desktop width and at 320px.
 - `npm run preview` serves the production build on
-  `http://localhost:4173`. It is a different origin, so its ticket
-  history is separate from the dev server's.
+  `http://localhost:8080` (`preview` block in `vite.config.ts`: host
+  `0.0.0.0`, `strictPort`, `allowedHosts` for the stand). It is a
+  different origin, so its ticket history is separate from the dev
+  server's. A new stand hostname must be added to `allowedHosts`, or
+  Vite answers "Blocked request". The stand config was supplied by the
+  stand admin; do not change the list without asking.
 - Dev server: `http://localhost:5173`. `127.0.0.1:5173` does not work,
   because Vite binds to `localhost` only.
 - For verification always use the local mock: ML on `127.0.0.1:8001`,
