@@ -13,6 +13,8 @@ before changing one.
 
 - React 19, Vite 8, TypeScript (strict).
 - Styling: CSS Modules plus design tokens in `src/styles/tokens.css`.
+- Runtime dependencies besides React: `react-markdown` and `remark-gfm`,
+  used only to render agent answers.
 - No UI kit, router, state manager, test runner, or linter is installed.
 
 ## Where Code Goes
@@ -92,8 +94,14 @@ before changing one.
 - Voice input (`useSpeechInput`) puts recognized text into the field and
   never sends it. Hide the mic button when recognition is unavailable
   and say why.
-- Message text is rendered as plain text. Never parse it as HTML or
-  Markdown without sanitizing.
+- The mechanic's messages are rendered as plain text. Agent answers are
+  rendered as Markdown by `features/chat/AgentMarkdown.tsx`
+  (`react-markdown` + `remark-gfm`, approved by the user). Never add
+  `rehype-raw` or `dangerouslySetInnerHTML`: HTML from an answer must
+  stay text. Images are disallowed; links open in a new tab.
+- `<think>` reasoning is split off in `agentAnswer.ts` and shown in a
+  collapsed `<details>` above the answer, as plain text (the user's
+  choice, as in Open WebUI). It never appears in the answer itself.
 
 ## Tickets
 

@@ -5,9 +5,53 @@ import { isRecord } from '../../api/http';
 import type { AgentReference, AgentTicketDraft } from '../../types/agent';
 
 export interface AgentAnswer {
-  /** Текст для ленты, без блока с черновиком. */
+  /** Текст для ленты в разметке Markdown, без рассуждений и без блока с черновиком. */
   text: string;
+  /** Рассуждения модели из тегов `<think>`: показываются отдельно от ответа, свёрнутыми. */
+  thinking: string | null;
   draft: AgentTicketDraft | null;
+}
+
+const MAX_THINKING_LENGTH = 20_000;
+const THINK_OPEN = '<think(?:ing)?>';
+const THINK_CLOSE = '</think(?:ing)?>';
+const THINK_BLOCK_PATTERN = new RegExp(`${THINK_OPEN}([\\s\\S]*?)${THINK_CLOSE}`, 'gi');
+const THINK_OPEN_PATTERN = new RegExp(THINK_OPEN, 'i');
+const THINK_CLOSE_PATTERN = new RegExp(THINK_CLOSE, 'gi');
+
+/**
+ * Отделяет рассуждения модели от ответа. Модели с рассуждениями пишут их в тегах `<think>…</think>`
+ * перед ответом; в самом ответе эти теги механику не нужны.
+ *
+ * Теги бывают непарными. Закрывающий без открывающего — рассуждением считается всё до него:
+ * так отвечают модели, у которых открывающий тег подставляет сервер. Открывающий без
+ * закрывающего — всё после него: ответ оборвался на рассуждении.
+ */
+function splitThinking(answer: string): { text: string; thinking: string | null } {
+  const parts: string[] = [];
+  let text = answer.replace(THINK_BLOCK_PATTERN, (_block, inner: string) => {
+    parts.push(inner);
+    return '\n\n';
+  });
+
+  const lastClose = [...text.matchAll(THINK_CLOSE_PATTERN)].at(-1);
+  if (lastClose !== undefined) {
+    parts.push(text.slice(0, lastClose.index).replace(THINK_CLOSE_PATTERN, '\n\n'));
+    text = text.slice(lastClose.index + lastClose[0].length);
+  }
+
+  const open = THINK_OPEN_PATTERN.exec(text);
+  if (open !== null) {
+    parts.push(text.slice(open.index + open[0].length));
+    text = text.slice(0, open.index);
+  }
+
+  const thinking = parts
+    .map((part) => part.trim())
+    .filter((part) => part !== '')
+    .join('\n\n')
+    .slice(0, MAX_THINKING_LENGTH);
+  return { text, thinking: thinking === '' ? null : thinking };
 }
 
 const MAX_ITEMS = 30;
@@ -94,17 +138,19 @@ function findTrailingJson(text: string): { start: number; value: unknown } | nul
 }
 
 /**
- * Отделяет черновик заявки от текста ответа.
+ * Делит ответ агента на рассуждения, текст для ленты и черновик заявки.
  *
  * Блоки JSON из текста убираются всегда, даже если разобрать их не удалось:
  * сырой JSON механику показывать нельзя. Черновиком считается последний пригодный блок.
+ * В рассуждениях черновик не ищется: это ход мысли, а не ответ.
  *
  * @returns `null`, если после разбора показывать нечего: ни текста, ни черновика.
  */
 export function parseAgentAnswer(answer: string): AgentAnswer | null {
   const drafts: AgentTicketDraft[] = [];
+  const { text: answerText, thinking } = splitThinking(answer);
 
-  let text = answer.replace(JSON_BLOCK_PATTERN, (_block, json: string) => {
+  let text = answerText.replace(JSON_BLOCK_PATTERN, (_block, json: string) => {
     const draft = toDraft(parseJson(json));
     if (draft !== null) drafts.push(draft);
     return '';
@@ -128,5 +174,5 @@ export function parseAgentAnswer(answer: string): AgentAnswer | null {
     if (draft === null) return null;
     text = draft.conclusion ?? ONLY_DRAFT_TEXT;
   }
-  return { text, draft };
+  return { text, thinking, draft };
 }

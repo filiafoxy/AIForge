@@ -3,15 +3,23 @@
 
 import type { AgentTicketDraft } from '../../types/agent';
 import type { DiagnoseResponse } from '../../types/diagnosis';
+import type { AgentAnswer } from './agentAnswer';
 
 type MessageContent =
   /** Сообщение механика. */
   | { kind: 'user'; text: string }
   /**
-   * Текстовый ответ помощника. `analysisOf` — результат диагностики, по которому это заключение;
-   * `null` у ответа на вопрос механика. `draft` — черновик заявки, если помощник его приложил.
+   * Ответ помощника: `text` — в разметке Markdown, `thinking` — рассуждения модели, если она их прислала.
+   * `analysisOf` — результат диагностики, по которому это заключение; `null` у ответа на вопрос механика.
+   * `draft` — черновик заявки, если помощник его приложил.
    */
-  | { kind: 'assistant'; text: string; analysisOf: DiagnoseResponse | null; draft: AgentTicketDraft | null }
+  | {
+      kind: 'assistant';
+      text: string;
+      thinking: string | null;
+      analysisOf: DiagnoseResponse | null;
+      draft: AgentTicketDraft | null;
+    }
   /**
    * Заявка на дефектовку по результату `diagnosis`. `open` — механик её оформляет;
    * остальное — оформление закончено. Поля заявки лента не хранит: они живут в карточке.
@@ -49,10 +57,10 @@ export type ConversationAction =
   | { type: 'diagnosis_received' }
   | { type: 'diagnosis_failed'; text: string }
   | { type: 'analysis_requested' }
-  | { type: 'analysis_received'; diagnosis: DiagnoseResponse; text: string; draft: AgentTicketDraft | null }
+  | { type: 'analysis_received'; diagnosis: DiagnoseResponse; answer: AgentAnswer }
   | { type: 'analysis_failed'; diagnosis: DiagnoseResponse; text: string }
   | { type: 'question_sent'; text: string }
-  | { type: 'answer_received'; text: string; draft: AgentTicketDraft | null }
+  | { type: 'answer_received'; answer: AgentAnswer }
   | { type: 'answer_failed'; text: string }
   | { type: 'ticket_started'; diagnosis: DiagnoseResponse }
   | { type: 'ticket_closed'; messageId: number; status: 'created' | 'cancelled' };
@@ -93,12 +101,7 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return {
         ...state,
         isAnalysisPending: false,
-        messages: withMessage(state, {
-          kind: 'assistant',
-          text: action.text,
-          analysisOf: action.diagnosis,
-          draft: action.draft,
-        }),
+        messages: withMessage(state, { kind: 'assistant', ...action.answer, analysisOf: action.diagnosis }),
       };
     case 'analysis_failed':
       return {
@@ -121,7 +124,7 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return {
         ...state,
         isAgentPending: false,
-        messages: withMessage(state, { kind: 'assistant', text: action.text, analysisOf: null, draft: action.draft }),
+        messages: withMessage(state, { kind: 'assistant', ...action.answer, analysisOf: null }),
       };
     case 'answer_failed':
       return {

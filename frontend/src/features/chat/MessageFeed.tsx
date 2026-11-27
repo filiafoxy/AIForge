@@ -5,6 +5,7 @@ import type { DiagnoseResponse } from '../../types/diagnosis';
 import type { Session, Vehicle } from '../../types/fleet';
 import { TicketCard } from '../tickets/TicketCard';
 import { canRequestTicket } from '../tickets/ticketDraft';
+import { AgentMarkdown } from './AgentMarkdown';
 import { findLatestDraft, findOpenTicket, findTicketAnchor } from './conversationState';
 import type { ChatMessage } from './conversationState';
 import styles from './MessageFeed.module.css';
@@ -95,7 +96,7 @@ export function MessageFeed({
         return (
           <>
             <p className={styles.author}>Вы</p>
-            {/* Текст выводится как есть, без разбора разметки. */}
+            {/* Текст механика выводится как есть, без разбора разметки. */}
             <p className={styles.bubble}>{message.text}</p>
           </>
         );
@@ -103,7 +104,17 @@ export function MessageFeed({
         return (
           <>
             <p className={styles.author}>Помощник</p>
-            <p className={styles.bubble}>{message.text}</p>
+            {/* Рассуждения модели свёрнуты: механику нужен ответ, а ход мысли — по желанию. */}
+            {message.thinking !== null && (
+              <details className={styles.thinking}>
+                <summary>Размышление помощника</summary>
+                <p className={styles.thinkingNote}>Черновые рассуждения модели. Ответ помощника — ниже.</p>
+                <p className={styles.thinkingText}>{message.thinking}</p>
+              </details>
+            )}
+            <div className={`${styles.bubble} ${styles.rich}`}>
+              <AgentMarkdown text={message.text} />
+            </div>
             {renderTicketAction(message)}
           </>
         );

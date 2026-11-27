@@ -100,7 +100,7 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
       (answer) => {
         if (controller.signal.aborted) return;
         analysisRequestRef.current = null;
-        dispatch({ type: 'analysis_received', diagnosis, text: answer.text, draft: answer.draft });
+        dispatch({ type: 'analysis_received', diagnosis, answer });
       },
       (cause: unknown) => {
         if (controller.signal.aborted) return;
@@ -156,7 +156,7 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
       (answer) => {
         if (controller.signal.aborted) return;
         questionRequestRef.current = null;
-        dispatch({ type: 'answer_received', text: answer.text, draft: answer.draft });
+        dispatch({ type: 'answer_received', answer });
       },
       (cause: unknown) => {
         if (controller.signal.aborted) return;
