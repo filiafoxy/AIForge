@@ -18,13 +18,15 @@ before changing one.
 ## Where Code Goes
 
 - `src/features/<feature>/` — one feature: its components, hook, and
-  pure logic. Existing: `selection`, `diagnosis`, `chat`.
+  pure logic. Existing: `selection`, `diagnosis`, `chat`, `tickets`.
 - `src/components/` — shared UI only: `AppLayout`, `Button`, `Panel`, `Notice`.
 - `src/api/` — `http.ts` (`postJson`, `ApiError`) and one client per service.
 - `src/config/env.ts` — the only place that reads `import.meta.env`.
-- `src/config/heuristics.ts` — team thresholds: low confidence and
-  deviation-strength bands. Change them there and update
-  `frontend/README.md`. The verdict shows them to the mechanic (FR-04).
+- `src/config/heuristics.ts` — team thresholds: low confidence,
+  deviation-strength bands, ticket priority inputs. Change them there
+  and update `frontend/README.md`. The UI shows them to the mechanic.
+- `src/config/manuals.ts` — repair manuals per engine model with page
+  counts, taken from the TZ. The only source of manual names.
 - `src/types/` — API contracts and fleet data shapes.
 - `src/pages/` — composition only: wires features together.
 
@@ -63,6 +65,32 @@ before changing one.
   and say why.
 - Message text is rendered as plain text. Never parse it as HTML or
   Markdown without sanitizing.
+
+## Tickets
+
+- A ticket is a feed message (`kind: 'ticket'`) rendered by
+  `features/tickets/TicketCard`: form → review → created or cancelled.
+  Only one ticket can be open at a time.
+- Offer a ticket only when `canRequestTicket` is true: a reliable
+  anomaly verdict with a known fault code.
+- `POST /tickets` is sent only from the review step, by the explicit
+  confirm button, with exactly the request shown there. Editing or
+  cancelling sends nothing.
+- Never invent references. The manual comes from `config/manuals.ts`
+  for the vehicle's engine; the page number is typed by the mechanic
+  and checked against the manual's page count. No default page.
+- Do not copy the ML `description` into the ticket: build the
+  conclusion from structured fields only.
+- Priority comes from `features/tickets/priority.ts` together with its
+  reasons; always show the reasons, including that node criticality
+  from the manual is not part of the calculation.
+- A ticket number is shown only after a `201` with `ticket_id`. On
+  timeout or an unreadable response say the outcome is unknown.
+- Do not abort the ticket request on unmount: the number must reach
+  the history even if the mechanic leaves the session.
+- History lives in `ticketHistoryStore.ts` (`localStorage`, read with
+  `useSyncExternalStore`). Do not name files so that they differ only
+  by letter case: the build fails on Windows.
 
 ## Service Calls
 

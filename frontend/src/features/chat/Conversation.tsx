@@ -24,10 +24,8 @@ export function Conversation({ vehicle, session }: ConversationProps) {
 }
 
 function ConversationForSelection({ vehicle, session }: ConversationProps) {
-  const { messages, isDiagnosisPending, isAgentPending, requestDiagnosis, sendQuestion } = useConversation(
-    vehicle,
-    session,
-  );
+  const { messages, isDiagnosisPending, isAgentPending, requestDiagnosis, sendQuestion, startTicket, closeTicket } =
+    useConversation(vehicle, session);
   const headingId = useId();
   const hintId = useId();
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -112,6 +110,8 @@ function ConversationForSelection({ vehicle, session }: ConversationProps) {
               vehicle={vehicle}
               session={session}
               lastMessageRef={lastMessageRef}
+              onStartTicket={startTicket}
+              onCloseTicket={closeTicket}
             />
             <div ref={composerRef} className={styles.composer}>
               <MessageComposer isSending={isAgentPending} onSend={sendQuestion} />

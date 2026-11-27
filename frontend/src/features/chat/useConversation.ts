@@ -3,7 +3,7 @@ import { sendAgentMessage } from '../../api/agentClient';
 import { ApiError } from '../../api/http';
 import { fetchDiagnosis } from '../../api/mlClient';
 import type { AgentRequest } from '../../types/agent';
-import type { DiagnoseRequest } from '../../types/diagnosis';
+import type { DiagnoseRequest, DiagnoseResponse } from '../../types/diagnosis';
 import type { Session, Vehicle } from '../../types/fleet';
 import { createRandomId } from '../../utils/createRandomId';
 import { describeDiagnosisError } from '../diagnosis/diagnosisErrorMessage';
@@ -19,6 +19,10 @@ interface UseConversationResult {
   requestDiagnosis: () => void;
   /** Отправляет вопрос помощнику. Пока ждём ответ на предыдущий, новый не принимается. */
   sendQuestion: (text: string) => void;
+  /** Открывает в ленте заявку на дефектовку по результату диагностики. */
+  startTicket: (diagnosis: DiagnoseResponse) => void;
+  /** Отмечает, что оформление заявки закончено: она создана или отменена. */
+  closeTicket: (messageId: number, status: 'created' | 'cancelled') => void;
 }
 
 /**
@@ -101,5 +105,7 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
     isAgentPending: state.isAgentPending,
     requestDiagnosis,
     sendQuestion,
+    startTicket: (diagnosis) => dispatch({ type: 'ticket_started', diagnosis }),
+    closeTicket: (messageId, status) => dispatch({ type: 'ticket_closed', messageId, status }),
   };
 }

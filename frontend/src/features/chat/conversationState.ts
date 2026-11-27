@@ -10,6 +10,11 @@ type MessageContent =
   | { kind: 'assistant'; text: string }
   /** Результат диагностики: в ленте показывается вердиктом. */
   | { kind: 'verdict'; result: DiagnoseResponse }
+  /**
+   * Заявка на дефектовку по результату `diagnosis`. `open` — механик её оформляет;
+   * остальное — оформление закончено. Поля заявки лента не хранит: они живут в карточке.
+   */
+  | { kind: 'ticket'; diagnosis: DiagnoseResponse; status: 'open' | 'created' | 'cancelled' }
   /** Запрос не выполнен: что случилось и что делать. */
   | { kind: 'error'; title: string; text: string };
 
@@ -30,7 +35,9 @@ export type ConversationAction =
   | { type: 'diagnosis_failed'; text: string }
   | { type: 'question_sent'; text: string }
   | { type: 'answer_received'; text: string }
-  | { type: 'answer_failed'; text: string };
+  | { type: 'answer_failed'; text: string }
+  | { type: 'ticket_started'; diagnosis: DiagnoseResponse }
+  | { type: 'ticket_closed'; messageId: number; status: 'created' | 'cancelled' };
 
 export const EMPTY_CONVERSATION: ConversationState = {
   messages: [],
@@ -80,5 +87,26 @@ export function conversationReducer(state: ConversationState, action: Conversati
         isAgentPending: false,
         messages: withMessage(state, { kind: 'error', title: 'Ответ не получен', text: action.text }),
       };
+    case 'ticket_started':
+      // Одновременно оформляется одна заявка: две открытые формы легко перепутать.
+      if (hasOpenTicket(state.messages)) return state;
+      return {
+        ...state,
+        messages: withMessage(state, { kind: 'ticket', diagnosis: action.diagnosis, status: 'open' }),
+      };
+    case 'ticket_closed':
+      return {
+        ...state,
+        messages: state.messages.map((message) =>
+          message.id === action.messageId && message.kind === 'ticket'
+            ? { ...message, status: action.status }
+            : message,
+        ),
+      };
   }
+}
+
+/** Есть ли в диалоге заявка, которую механик ещё оформляет. */
+export function hasOpenTicket(messages: readonly ChatMessage[]): boolean {
+  return messages.some((message) => message.kind === 'ticket' && message.status === 'open');
 }

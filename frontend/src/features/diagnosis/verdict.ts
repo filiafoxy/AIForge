@@ -58,7 +58,7 @@ const SIGNAL_QUALITY_TEXT: Record<SignalQuality, string> = {
   bad: 'непригодное для анализа',
 };
 
-const DEVIATION_LEVEL_TEXT: Record<DeviationLevel, string> = {
+export const DEVIATION_LEVEL_TEXT: Record<DeviationLevel, string> = {
   low: 'слабое',
   medium: 'умеренное',
   high: 'сильное',
@@ -282,7 +282,7 @@ function buildFacts(result: DiagnoseResponse, withDeviationLevel = false): Verdi
  * Название группы неисправностей под подозрением: узел («Генератор») или признак («Низкое давление масла»).
  * Код неисправности механику не показываем — только название: коды условные, в руководствах их нет.
  */
-function getSuspectedFault(result: DiagnoseResponse): string | null {
+export function getSuspectedFault(result: DiagnoseResponse): string | null {
   if (result.anomaly_title !== null && result.anomaly_title.trim() !== '') {
     return result.anomaly_title.trim();
   }
@@ -293,12 +293,12 @@ function getSuspectedFault(result: DiagnoseResponse): string | null {
  * Уверенность в процентах с округлением вниз: значение чуть ниже порога не должно
  * выглядеть равным порогу («55 % — ниже порога 55 %»).
  */
-function formatConfidence(confidence: number): string {
+export function formatConfidence(confidence: number): string {
   // Сначала убираем погрешность двоичной дроби (0.57 * 100 = 56.99999999999999), потом отбрасываем доли процента.
   const wholePercent = Math.floor(Math.round(confidence * 10_000) / 100);
   return formatPercent(wholePercent / 100);
 }
 
-function lowerFirst(text: string): string {
+export function lowerFirst(text: string): string {
   return text.charAt(0).toLocaleLowerCase('ru-RU') + text.slice(1);
 }

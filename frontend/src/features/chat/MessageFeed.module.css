@@ -49,3 +49,17 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
+
+/* Действие под сообщением: на телефоне кнопка во всю ширину, на широком экране — по содержимому. */
+.followUp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+@media (min-width: 600px) {
+  .followUp {
+    align-items: flex-start;
+  }
+}
