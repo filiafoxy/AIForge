@@ -51,11 +51,19 @@ export interface ConversationState {
   isAgentPending: boolean;
   /** Помощник готовит заключение по результату диагностики. */
   isAnalysisPending: boolean;
+  /**
+   * Результат диагностики этой проверки, если приложение его уже получило: по кнопке диагностики
+   * или втихую при первом вопросе механика. Без него заявка не предлагается: по нему решается,
+   * достоверно ли отклонение, и из него берутся код неисправности и основания приоритета.
+   */
+  diagnosis: DiagnoseResponse | null;
 }
 
 export type ConversationAction =
   | { type: 'diagnosis_requested' }
-  | { type: 'diagnosis_received' }
+  | { type: 'diagnosis_received'; diagnosis: DiagnoseResponse }
+  /** Результат диагностики получен втихую, без кнопки: механик сразу задал вопрос. Ожидание не меняет. */
+  | { type: 'diagnosis_known'; diagnosis: DiagnoseResponse }
   | { type: 'diagnosis_failed'; text: string }
   | { type: 'analysis_requested' }
   | { type: 'analysis_received'; diagnosis: DiagnoseResponse; answer: AgentAnswer }
@@ -71,6 +79,7 @@ export const EMPTY_CONVERSATION: ConversationState = {
   isDiagnosisPending: false,
   isAgentPending: false,
   isAnalysisPending: false,
+  diagnosis: null,
 };
 
 function withMessage(state: ConversationState, content: MessageContent): readonly ChatMessage[] {
@@ -83,8 +92,11 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return { ...state, isDiagnosisPending: true };
     case 'diagnosis_received':
       // Сам результат в ленту не попадает: механику его пересказывает помощник в заключении.
-      // Приложению он нужен для заявки и хранится в сообщении с заключением.
-      return { ...state, isDiagnosisPending: false };
+      // Приложению он нужен для заявки.
+      return { ...state, isDiagnosisPending: false, diagnosis: action.diagnosis };
+    case 'diagnosis_known':
+      // Только запоминаем: ожидание ответа на кнопку диагностики, если оно идёт, не трогаем.
+      return { ...state, diagnosis: action.diagnosis };
     case 'diagnosis_failed':
       return {
         ...state,
@@ -203,16 +215,33 @@ export function findLatestDraft(messages: readonly ChatMessage[]): AgentTicketDr
 }
 
 /**
- * Сообщение, под которым стоит кнопка заявки: последнее заключение помощника. Кнопка в диалоге одна.
- * Без заключения заявка не предлагается: механик ещё не знает, что показала проверка.
- * `null` — заключения в ленте нет. Можно ли оформить заявку по результату, решает вызывающий.
+ * Сообщение, под которым стоит кнопка заявки. Кнопка в диалоге одна.
+ *
+ * Механик может начать не с кнопки диагностики, а сразу с вопроса вроде «Выдай результат
+ * сканирования»: тогда у ответа помощника нет `analysisOf`, но по сути это и есть заключение.
+ * Поэтому заключением считается:
+ * 1. ответ на кнопку диагностики (у него есть `analysisOf`);
+ * 2. ответ, в котором помощник приложил черновик заявки;
+ * 3. если таких нет, последний ответ помощника: механик уже начал разговор о результате.
+ * Из подходящих выбирается самый поздний, но (3) уступает (1) и (2).
+ *
+ * Без ответа помощника заявка не предлагается: механик ещё не знает, что показала проверка.
+ * `knownDiagnosis` — результат диагностики, который приложение получило само (см. `ConversationState`);
+ * у ответа на кнопку берётся его собственный результат. `null` — места для кнопки нет.
+ * Можно ли оформить заявку по результату, решает вызывающий.
  */
-export function findTicketAnchor(messages: readonly ChatMessage[]): { id: number; diagnosis: DiagnoseResponse } | null {
+export function findTicketAnchor(
+  messages: readonly ChatMessage[],
+  knownDiagnosis: DiagnoseResponse | null,
+): { id: number; diagnosis: DiagnoseResponse } | null {
+  let latestAnswerId: number | null = null;
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
-    if (message.kind === 'assistant' && message.analysisOf !== null) {
-      return { id: message.id, diagnosis: message.analysisOf };
-    }
+    if (message.kind !== 'assistant') continue;
+    if (message.analysisOf !== null) return { id: message.id, diagnosis: message.analysisOf };
+    if (message.draft !== null && knownDiagnosis !== null) return { id: message.id, diagnosis: knownDiagnosis };
+    latestAnswerId ??= message.id;
   }
+  if (latestAnswerId !== null && knownDiagnosis !== null) return { id: latestAnswerId, diagnosis: knownDiagnosis };
   return null;
 }

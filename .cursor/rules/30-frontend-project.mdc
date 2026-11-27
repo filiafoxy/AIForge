@@ -126,6 +126,14 @@ before changing one.
 - Offer a ticket only when `canRequestTicket` is true for the ML
   result: a reliable anomaly with a known fault code. The agent's text
   or draft never enables a ticket on its own.
+- The mechanic may start with a question instead of the diagnosis
+  button. The first question silently calls `POST /diagnose` once per
+  conversation (`loadDiagnosisInBackground` in `useConversation`; no
+  pending flag, no error in the feed, retried by the next question) and
+  stores the result in `ConversationState.diagnosis`. `findTicketAnchor`
+  puts the button under the latest conclusion: a button-flow answer
+  (`analysisOf`), else an answer with a draft, else the latest answer.
+  Keep it a single button per conversation.
 - `POST /tickets` is sent only from the review step, by the explicit
   confirm button, with exactly the request shown there. Editing or
   cancelling sends nothing.

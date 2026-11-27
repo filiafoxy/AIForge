@@ -34,6 +34,7 @@ function ConversationForSelection({ vehicle, session }: ConversationProps) {
     requestDiagnosis,
     requestAnalysis,
     sendQuestion,
+    diagnosis,
     startTicket,
     closeTicket,
   } = useConversation(vehicle, session);
@@ -135,6 +136,7 @@ function ConversationForSelection({ vehicle, session }: ConversationProps) {
               pendingNotes={pendingNotes}
               vehicle={vehicle}
               session={session}
+              diagnosis={diagnosis}
               isAnalysisPending={isAnalysisPending}
               isAnswerPending={isAgentPending}
               lastMessageRef={lastMessageRef}

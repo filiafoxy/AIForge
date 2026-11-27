@@ -17,6 +17,8 @@ interface MessageFeedProps {
   /** Машина и проверка, к которым относится диалог: нужны заявке. */
   vehicle: Vehicle;
   session: Session;
+  /** Результат диагностики этой проверки, если приложение его уже получило. Без него заявки нет. */
+  diagnosis: DiagnoseResponse | null;
   /** Помощник готовит заключение по результату диагностики. */
   isAnalysisPending: boolean;
   /** Помощник отвечает на вопрос механика: заключение в это время запросить нельзя. */
@@ -37,6 +39,7 @@ export function MessageFeed({
   pendingNotes,
   vehicle,
   session,
+  diagnosis: knownDiagnosis,
   isAnalysisPending,
   isAnswerPending,
   lastMessageRef,
@@ -47,10 +50,11 @@ export function MessageFeed({
   const openTicket = findOpenTicket(messages);
   const hasDraft = findLatestDraft(messages) !== null;
 
-  const ticketAnchor = findTicketAnchor(messages);
+  const ticketAnchor = findTicketAnchor(messages, knownDiagnosis);
 
   /**
-   * Кнопка заявки под заключением помощника. Подсказка объясняет, чем заполнится форма.
+   * Кнопка заявки под заключением помощника: ответом на кнопку диагностики или на вопрос, заданный
+   * сразу (см. `findTicketAnchor`). Подсказка объясняет, чем заполнится форма.
    * Предлагать ли заявку, решает не текст помощника, а результат ML-сервиса: только
    * по достоверному отклонению. В остальных случаях диагноза нет.
    */

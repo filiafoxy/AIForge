@@ -36,6 +36,12 @@ interface UseConversationResult {
    * новый не принимается. Изображения переходят диалогу: он освобождает их адреса `blob:`.
    */
   sendQuestion: (text: string, images?: readonly ImageAttachment[]) => void;
+  /**
+   * Результат диагностики этой проверки, если он уже получен: по кнопке диагностики или втихую при
+   * первом вопросе механика. Нужен ленте, чтобы предложить заявку и после вопроса, заданного
+   * без кнопки.
+   */
+  diagnosis: DiagnoseResponse | null;
   /** Открывает в ленте заявку на дефектовку по результату диагностики. */
   startTicket: (diagnosis: DiagnoseResponse) => void;
   /** Отмечает, что оформление заявки закончено: она создана или отменена. */
@@ -60,6 +66,8 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
   const [conversationId] = useState(createRandomId);
   const diagnosisRequestRef = useRef<AbortController | null>(null);
   const questionRequestRef = useRef<AbortController | null>(null);
+  // Тихий запрос результата диагностики при первом вопросе. Не блокирует ни вопрос, ни кнопки.
+  const backgroundDiagnosisRef = useRef<AbortController | null>(null);
   // Запросы к агенту: пока один выполняется, второй не отправляется. Занятость проверяется по ссылкам,
   // а не по состоянию: заключение запрашивается из обработчика ответа диагностики, где состояние
   // уже устарело. По завершении запроса ссылка обнуляется.
@@ -71,6 +79,7 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
   useEffect(
     () => () => {
       diagnosisRequestRef.current?.abort();
+      backgroundDiagnosisRef.current?.abort();
       questionRequestRef.current?.abort();
       analysisRequestRef.current?.abort();
       imageUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -139,7 +148,7 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
     fetchDiagnosis(request, controller.signal).then(
       (result) => {
         if (controller.signal.aborted) return;
-        dispatch({ type: 'diagnosis_received' });
+        dispatch({ type: 'diagnosis_received', diagnosis: result });
         requestAnalysis(result);
       },
       (cause: unknown) => {
@@ -148,6 +157,35 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
         // Подробности — в консоль разработчику; механик видит понятный текст в ленте.
         console.error('Запрос диагностики не выполнен:', error, error.serviceDetail ?? '');
         dispatch({ type: 'diagnosis_failed', text: describeDiagnosisError(error, request) });
+      },
+    );
+  }
+
+  /**
+   * Узнаёт результат диагностики, если механик начал с вопроса, а не с кнопки диагностики.
+   * Заявка по ответу помощника возможна, только когда приложение знает результат (достоверно ли
+   * отклонение, какой код неисправности). Ничего не показывает: механик видит только ответ помощника.
+   * Сбой не страшен — заявка в этом случае не предлагается, а следующий вопрос запросит результат снова.
+   */
+  function loadDiagnosisInBackground() {
+    if (vehicle === null || session === null) return;
+    if (state.diagnosis !== null || backgroundDiagnosisRef.current !== null) return;
+
+    const request: DiagnoseRequest = { vehicle_id: vehicle.vehicle_id, session_id: session.session_id };
+    const controller = new AbortController();
+    backgroundDiagnosisRef.current = controller;
+
+    fetchDiagnosis(request, controller.signal).then(
+      (diagnosis) => {
+        if (controller.signal.aborted) return;
+        backgroundDiagnosisRef.current = null;
+        dispatch({ type: 'diagnosis_known', diagnosis });
+      },
+      (cause: unknown) => {
+        if (controller.signal.aborted) return;
+        backgroundDiagnosisRef.current = null;
+        const error = toApiError(cause);
+        console.error('Результат диагностики для заявки не получен:', error, error.serviceDetail ?? '');
       },
     );
   }
@@ -171,6 +209,9 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
 
     // Адреса миниатюр живут, пока открыт диалог: сообщение остаётся в ленте.
     images.forEach((image) => imageUrlsRef.current.push(image.previewUrl));
+
+    // Ответ помощника может оказаться заключением по проверке, и тогда под ним нужна кнопка заявки.
+    loadDiagnosisInBackground();
 
     const controller = new AbortController();
     questionRequestRef.current = controller;
@@ -210,6 +251,7 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
     requestDiagnosis,
     requestAnalysis,
     sendQuestion,
+    diagnosis: state.diagnosis,
     startTicket: (diagnosis) => dispatch({ type: 'ticket_started', diagnosis }),
     closeTicket: (messageId, status) => dispatch({ type: 'ticket_closed', messageId, status }),
   };
