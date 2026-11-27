@@ -177,6 +177,28 @@ before changing one.
   `session_id` and `checked_at` on purpose; do not read results from
   `vehicles.json`.
 
+## PWA
+
+- The app is installable and its shell opens offline. No PWA library:
+  `public/manifest.webmanifest`, `public/icons/`, the service worker
+  source `pwa/sw.js` and the build plugin `pwa/pwaPlugin.ts` (it
+  prepends `BUILD_ID` and the file list and emits `dist/sw.js`).
+  Registration is `src/pwa/registerServiceWorker.ts`, production only.
+- The worker handles only same-origin GET requests and caches only the
+  shell files. Never cache service responses (ML, TOIR, agent), never
+  add them to the precache list, never intercept other origins or POST.
+- A new file in `public/` that must work offline goes into
+  `PUBLIC_SHELL_FILES` in `pwa/pwaPlugin.ts`; a wrong path breaks the
+  worker install. Cache lookups use `ignoreVary` on purpose (the server
+  sends `Vary: Origin`, module scripts carry `Origin`).
+- The icons are drawn from `public/favicon.svg`; redraw them when the
+  logo changes. Keep relative URLs in the manifest so `--base` works.
+- Verify with `npm run build` and `npx vite preview`, then stop the
+  server and reload: the shell must still open. Unregister the worker
+  and clear caches afterwards.
+- Do not add `vite-plugin-pwa`, Workbox, or other dependencies without
+  the user's approval.
+
 ## Data Files
 
 - `src/data/vehicles.json` and `src/data/fault_types.json` are byte-for-byte
