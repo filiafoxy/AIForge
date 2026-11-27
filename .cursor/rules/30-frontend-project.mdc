@@ -30,7 +30,9 @@ before changing one.
   deviation-strength bands, ticket priority inputs. Change them there
   and update `frontend/README.md`. The UI shows them to the mechanic.
 - `src/config/manuals.ts` — repair manuals per engine model with page
-  counts, taken from the TZ. The only source of manual names.
+  counts, taken from the TZ. The only source of manual names; `aliases`
+  hold the PDF file names from requirements table 6.1 that the agent may
+  use, while the ticket always gets the TZ designation.
 - `src/types/` — API contracts and fleet data shapes.
 - `src/pages/` — composition only: wires features together.
 
@@ -41,7 +43,11 @@ before changing one.
   nothing from the ML response.
 - The app still calls `POST /diagnose`, but only for the ticket: the
   response is never shown in the feed. It decides whether a ticket is
-  offered and supplies the fault code and the priority inputs.
+  offered and supplies the fault code and the inputs of the fallback
+  priority calculation.
+- The low-confidence threshold is 0.60 (requirements v2). The threshold
+  and the reading rules are shown in the UI by `DiagnosisRules`, built
+  from the same constants as the calculation.
 - The app's own verdict card is switched off by the user's decision
   ("for now"). `DiagnosisVerdict.tsx` and `buildVerdict` are kept but
   not rendered. Do not bring the card back or delete it without asking.
@@ -65,6 +71,15 @@ before changing one.
   (`sendAgentMessage`): one POST to the webhook in `VITE_AGENT_URL` with
   `message`, `vehicle_id`, `engine_model`, `session_id`, `client_id`.
   The diagnosis result is not sent, neither as a field nor in the text.
+  The vehicle's history is not sent either: the agent owns it.
+- Images: with attachments the same fields go as `multipart/form-data`
+  strings plus one `files` part per image; without them the body stays
+  JSON. Never set `Content-Type` by hand for `FormData` (the browser
+  adds the boundary). `features/chat/imageAttachments.ts` validates,
+  downsizes (1600 px, JPEG) and thus strips EXIF; images live in memory
+  only (never `localStorage`), object URLs are revoked, and neither file
+  data nor base64 goes to the console. Do not copy auth fields from
+  other agents' pipes into this public repo.
 - The diagnosis button calls ML, then sends the agent a request for a
   conclusion: the constant `ANALYSIS_REQUEST` in
   `features/chat/analysisRequest.ts`. Keep it short, by the user's
@@ -122,12 +137,20 @@ before changing one.
   `ticketDraft.ts` fills the form when the ticket is opened, drops
   references to other engines' manuals or to pages beyond the page
   count, and lists the dropped ones for the mechanic. The form says
-  that the agent wrote the text. Priority is never taken from the agent.
+  that the agent wrote the text.
+- Priority and its justification come from the agent (`urgency` and
+  `urgency_reason` in the draft, or a "Приоритет: …" line in the text);
+  `resolvePriority` falls back to the app's own calculation and says so.
+  The mechanic can change it, and the form says who chose what.
+- A ticket without a manual reference is never sent (the TOIR schema
+  needs one). When the agent gives no source, say so above the form: for
+  "no procedure in the manual" the agent recommends manual troubleshooting
+  and does not form a ticket (requirements v2, 8.2.2.4).
 - Do not copy the ML `description` into the ticket: build the
   conclusion from structured fields only.
-- Priority comes from `features/tickets/priority.ts` together with its
-  reasons; always show the reasons, including that node criticality
-  from the manual is not part of the calculation.
+- The fallback priority comes from `features/tickets/priority.ts`
+  together with its reasons; always show the reasons, including that
+  node criticality and the vehicle's history are not part of it.
 - A ticket number is shown only after a `201` with `ticket_id`. On
   timeout or an unreadable response say the outcome is unknown.
 - Do not abort the ticket request on unmount: the number must reach

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react';
 import { Button } from '../../components/Button';
 import type { Session, Vehicle } from '../../types/fleet';
 import { formatDateTime } from '../../utils/formatDateTime';
+import { DiagnosisRules } from '../diagnosis/DiagnosisRules';
 import { MessageComposer } from './MessageComposer';
 import { hasOpenTicket } from './conversationState';
 import { MessageFeed } from './MessageFeed';
@@ -107,6 +108,7 @@ function ConversationForSelection({ vehicle, session }: ConversationProps) {
             {hint}
           </p>
         )}
+        <DiagnosisRules />
       </div>
 
       <section className={styles.chat} aria-labelledby={headingId}>

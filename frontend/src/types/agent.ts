@@ -1,5 +1,7 @@
 // Контракт ИИ-агента: тело запроса к вебхуку и черновик заявки из его ответа.
 
+import type { TicketUrgency } from './ticket';
+
 export interface AgentRequest {
   /** Вопрос механика или короткий запрос заключения по результату диагностики. */
   message: string;
@@ -23,6 +25,10 @@ export interface AgentReference {
  */
 export interface AgentTicketDraft {
   conclusion: string | null;
+  /** Приоритет, который назвал агент. `null` — не назвал: тогда считает приложение. */
+  urgency: TicketUrgency | null;
+  /** Обоснование приоритета словами агента, в том числе — учтена ли история по ТС. */
+  urgencyReason: string | null;
   operations: string[];
   spareParts: string[];
   references: AgentReference[];

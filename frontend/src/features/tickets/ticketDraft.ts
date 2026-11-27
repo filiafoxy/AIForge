@@ -114,8 +114,8 @@ export function buildInitialDraft(
 /** Что из черновика помощника попало в форму. */
 export interface AppliedSuggestion {
   draft: TicketDraft;
-  /** Взято ли из черновика помощника хоть что-то. */
-  isApplied: boolean;
+  /** Что именно взято из черновика помощника: «заключение», «работы», «источники»… Пусто — ничего. */
+  appliedFields: string[];
   /**
    * Ссылки помощника, которые в форму не попали: документа нет среди руководств этого двигателя
    * или в нём нет такой страницы. Показываются механику текстом — решать ему.
@@ -142,13 +142,15 @@ function findManual(name: string, manuals: readonly Manual[]): Manual | undefine
   const wanted = normalizeManualName(name);
   if (wanted === '') return undefined;
 
-  const exact = manuals.find((manual) => normalizeManualName(manual.name) === wanted);
+  // Все названия руководства: обозначение из ТЗ и имена файлов.
+  const namesOf = (manual: Manual) => [manual.name, ...manual.aliases].map(normalizeManualName);
+
+  const exact = manuals.find((manual) => namesOf(manual).includes(wanted));
   if (exact !== undefined) return exact;
 
-  const partial = manuals.filter((manual) => {
-    const known = normalizeManualName(manual.name);
-    return wanted.includes(known) || known.includes(wanted);
-  });
+  const partial = manuals.filter((manual) =>
+    namesOf(manual).some((known) => wanted.includes(known) || known.includes(wanted)),
+  );
   return partial.length === 1 ? partial[0] : undefined;
 }
 
@@ -157,14 +159,15 @@ function findManual(name: string, manuals: readonly Manual[]): Manual | undefine
  *
  * Берётся только пригодное. Ссылка попадает в форму, если документ есть среди руководств этого
  * двигателя и страница в нём существует: так в заявку не попадёт чужое руководство или
- * несуществующая страница. Приоритет помощник не задаёт — его считает приложение.
+ * несуществующая страница. Приоритет берётся у помощника, если он его назвал; иначе остаётся
+ * запасной расчёт приложения из `base`.
  */
 export function applyAgentSuggestion(
   base: TicketDraft,
   suggestion: AgentTicketDraft | null,
   manuals: readonly Manual[],
 ): AppliedSuggestion {
-  if (suggestion === null) return { draft: base, isApplied: false, rejectedReferences: [] };
+  if (suggestion === null) return { draft: base, appliedFields: [], rejectedReferences: [] };
 
   const references: ReferenceDraft[] = [];
   const rejectedReferences: string[] = [];
@@ -184,15 +187,24 @@ export function applyAgentSuggestion(
   const operations = suggestion.operations.join('\n').slice(0, MAX_TEXT_LENGTH);
   const spareParts = suggestion.spareParts.join('\n').slice(0, MAX_TEXT_LENGTH);
 
+  const appliedFields = [
+    conclusion !== null ? 'заключение' : null,
+    suggestion.urgency !== null ? 'приоритет' : null,
+    operations !== '' ? 'работы' : null,
+    spareParts !== '' ? 'запчасти' : null,
+    references.length > 0 ? 'источники' : null,
+  ].filter((field) => field !== null);
+
   return {
     draft: {
       ...base,
       conclusion: conclusion ?? base.conclusion,
+      urgency: suggestion.urgency ?? base.urgency,
       operations: operations !== '' ? operations : base.operations,
       spareParts,
       references: references.length > 0 ? references : base.references,
     },
-    isApplied: conclusion !== null || operations !== '' || spareParts !== '' || references.length > 0,
+    appliedFields,
     rejectedReferences,
   };
 }

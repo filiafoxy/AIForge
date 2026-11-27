@@ -12,6 +12,10 @@ import { describeAgentError } from './agentErrorMessage';
 import { ANALYSIS_REQUEST } from './analysisRequest';
 import { conversationReducer, EMPTY_CONVERSATION } from './conversationState';
 import type { ChatMessage } from './conversationState';
+import type { ImageAttachment } from './imageAttachments';
+
+/** Сообщение агенту, когда механик приложил изображения и ничего не написал. */
+const IMAGES_ONLY_MESSAGE = 'Изображения во вложении.';
 
 interface UseConversationResult {
   messages: readonly ChatMessage[];
@@ -27,8 +31,11 @@ interface UseConversationResult {
   requestDiagnosis: () => void;
   /** Повторно запрашивает заключение помощника по уже полученному результату — после сбоя. */
   requestAnalysis: (diagnosis: DiagnoseResponse) => void;
-  /** Отправляет вопрос помощнику. Пока ждём ответ на предыдущий, новый не принимается. */
-  sendQuestion: (text: string) => void;
+  /**
+   * Отправляет вопрос помощнику, при желании — с изображениями. Пока ждём ответ на предыдущий,
+   * новый не принимается. Изображения переходят диалогу: он освобождает их адреса `blob:`.
+   */
+  sendQuestion: (text: string, images?: readonly ImageAttachment[]) => void;
   /** Открывает в ленте заявку на дефектовку по результату диагностики. */
   startTicket: (diagnosis: DiagnoseResponse) => void;
   /** Отмечает, что оформление заявки закончено: она создана или отменена. */
@@ -57,19 +64,23 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
   // а не по состоянию: заключение запрашивается из обработчика ответа диагностики, где состояние
   // уже устарело. По завершении запроса ссылка обнуляется.
   const analysisRequestRef = useRef<AbortController | null>(null);
+  // Адреса `blob:` миниатюр изображений из ленты: освобождаются, когда диалог закрывается.
+  const imageUrlsRef = useRef<string[]>([]);
 
-  // Уходя с проверки или со страницы, не оставляем запросы висеть.
+  // Уходя с проверки или со страницы, не оставляем запросы висеть и освобождаем память под изображения.
   useEffect(
     () => () => {
       diagnosisRequestRef.current?.abort();
       questionRequestRef.current?.abort();
       analysisRequestRef.current?.abort();
+      imageUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      imageUrlsRef.current = [];
     },
     [],
   );
 
   /** Отправляет сообщение агенту в рамках этого диалога и разбирает ответ. */
-  async function askAgent(message: string, signal: AbortSignal): Promise<AgentAnswer> {
+  async function askAgent(message: string, signal: AbortSignal, files: readonly File[] = []): Promise<AgentAnswer> {
     if (vehicle === null || session === null) throw new ApiError('unknown');
 
     const responseText = await sendAgentMessage(
@@ -80,7 +91,7 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
         session_id: session.session_id,
         client_id: conversationId,
       },
-      signal,
+      { signal, files },
     );
     const answer = parseAgentAnswer(responseText);
     if (answer === null) throw new ApiError('invalid_response', { httpStatus: 200 });
@@ -141,18 +152,41 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
     );
   }
 
-  function sendQuestion(text: string) {
+  function sendQuestion(text: string, images: readonly ImageAttachment[] = []) {
     const question = text.trim();
     // Пока помощник занят — отвечает или готовит заключение, — новый вопрос не отправляем:
     // два одновременных сообщения в одном диалоге агент может перепутать.
-    if (question === '' || state.isAgentPending || state.isAnalysisPending || state.isDiagnosisPending) return;
-    if (vehicle === null || session === null) return;
+    const isRejected =
+      (question === '' && images.length === 0) ||
+      state.isAgentPending ||
+      state.isAnalysisPending ||
+      state.isDiagnosisPending ||
+      vehicle === null ||
+      session === null;
+    if (isRejected) {
+      // Изображения переданы нам; раз сообщение не уходит, адреса миниатюр освобождаем сразу.
+      images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+      return;
+    }
+
+    // Адреса миниатюр живут, пока открыт диалог: сообщение остаётся в ленте.
+    images.forEach((image) => imageUrlsRef.current.push(image.previewUrl));
 
     const controller = new AbortController();
     questionRequestRef.current = controller;
-    dispatch({ type: 'question_sent', text: question });
+    dispatch({
+      type: 'question_sent',
+      text: question,
+      images: images.map((image) => ({ name: image.file.name, url: image.previewUrl })),
+    });
 
-    askAgent(question, controller.signal).then(
+    // У сообщения с одними изображениями текста нет, а агенту нужно хоть какое-то сообщение.
+    const message = question !== '' ? question : IMAGES_ONLY_MESSAGE;
+    askAgent(
+      message,
+      controller.signal,
+      images.map((image) => image.file),
+    ).then(
       (answer) => {
         if (controller.signal.aborted) return;
         questionRequestRef.current = null;

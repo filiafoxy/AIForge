@@ -4,10 +4,11 @@
 import type { AgentTicketDraft } from '../../types/agent';
 import type { DiagnoseResponse } from '../../types/diagnosis';
 import type { AgentAnswer } from './agentAnswer';
+import type { MessageImage } from './imageAttachments';
 
 type MessageContent =
   /** Сообщение механика. */
-  | { kind: 'user'; text: string }
+  | { kind: 'user'; text: string; images: readonly MessageImage[] }
   /**
    * Ответ помощника: `text` — в разметке Markdown, `thinking` — рассуждения модели, если она их прислала.
    * `analysisOf` — результат диагностики, по которому это заключение; `null` у ответа на вопрос механика.
@@ -59,7 +60,7 @@ export type ConversationAction =
   | { type: 'analysis_requested' }
   | { type: 'analysis_received'; diagnosis: DiagnoseResponse; answer: AgentAnswer }
   | { type: 'analysis_failed'; diagnosis: DiagnoseResponse; text: string }
-  | { type: 'question_sent'; text: string }
+  | { type: 'question_sent'; text: string; images: readonly MessageImage[] }
   | { type: 'answer_received'; answer: AgentAnswer }
   | { type: 'answer_failed'; text: string }
   | { type: 'ticket_started'; diagnosis: DiagnoseResponse }
@@ -118,7 +119,7 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return {
         ...state,
         isAgentPending: true,
-        messages: withMessage(state, { kind: 'user', text: action.text }),
+        messages: withMessage(state, { kind: 'user', text: action.text, images: action.images }),
       };
     case 'answer_received':
       return {
@@ -172,15 +173,33 @@ export function hasOpenTicket(messages: readonly ChatMessage[]): boolean {
 }
 
 /**
- * Последний черновик заявки от помощника. Диалог относится к одной проверке, поэтому более
- * поздний черновик заменяет прежний: механик мог попросить помощника что-то в нём поправить.
+ * Черновик заявки от помощника. Диалог относится к одной проверке, поэтому каждое поле берётся
+ * из самого позднего ответа, где оно есть: механик мог попросить помощника что-то поправить.
+ * Поля по отдельности, потому что помощник присылает их не всегда вместе — например, приоритет
+ * в одном ответе, а источники в другом.
  */
 export function findLatestDraft(messages: readonly ChatMessage[]): AgentTicketDraft | null {
+  const drafts: AgentTicketDraft[] = [];
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
-    if (message.kind === 'assistant' && message.draft !== null) return message.draft;
+    if (message.kind === 'assistant' && message.draft !== null) drafts.push(message.draft);
   }
-  return null;
+  // Список идёт от позднего ответа к раннему: поздний закрывает пробелы в нём прежним.
+  return drafts.reduce<AgentTicketDraft | null>(
+    (later, earlier) =>
+      later === null
+        ? earlier
+        : {
+            conclusion: later.conclusion ?? earlier.conclusion,
+            urgency: later.urgency ?? earlier.urgency,
+            // Обоснование относится к приоритету: берётся из того же ответа, что и он.
+            urgencyReason: later.urgency !== null ? later.urgencyReason : earlier.urgencyReason,
+            operations: later.operations.length > 0 ? later.operations : earlier.operations,
+            spareParts: later.spareParts.length > 0 ? later.spareParts : earlier.spareParts,
+            references: later.references.length > 0 ? later.references : earlier.references,
+          },
+    null,
+  );
 }
 
 /**

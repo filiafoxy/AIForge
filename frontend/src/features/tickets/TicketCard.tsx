@@ -10,7 +10,7 @@ import type { Session, Vehicle } from '../../types/fleet';
 import type { TicketRequest } from '../../types/ticket';
 import { formatDateTime } from '../../utils/formatDateTime';
 import { getSuspectedFault } from '../diagnosis/verdict';
-import { assessPriority } from './priority';
+import { assessPriority, resolvePriority } from './priority';
 import { TicketForm } from './TicketForm';
 import { TicketReview } from './TicketReview';
 import { applyAgentSuggestion, buildInitialDraft, NO_DRAFT_ERRORS, validateDraft } from './ticketDraft';
@@ -48,7 +48,8 @@ type Stage =
  */
 export function TicketCard({ diagnosis, suggestion, vehicle, session, onClosed }: TicketCardProps) {
   const manuals = getManualsForEngine(vehicle.engine_model);
-  const assessment = assessPriority(diagnosis);
+  // Приоритет предлагает помощник; если он его не назвал — запасной расчёт приложения.
+  const assessment = resolvePriority(suggestion, assessPriority(diagnosis));
   const faultTitle = getSuspectedFault(diagnosis);
 
   // Черновик собирается один раз, при открытии карточки: дальше его правит механик.
@@ -172,11 +173,21 @@ export function TicketCard({ diagnosis, suggestion, vehicle, session, onClosed }
         </Notice>
       )}
 
-      {stage.kind === 'edit' && initial.isApplied && (
+      {stage.kind === 'edit' && initial.appliedFields.length > 0 && (
         <Notice tone="warning" title="Форма заполнена по черновику помощника" quiet>
           <p>
-            Заключение, работы, запчасти и источники предложил помощник. Сверьте их с руководством и поправьте,
-            если нужно: в ТОиР уйдёт то, что вы подтвердите.
+            Помощник предложил: {initial.appliedFields.join(', ')}. Сверьте это с руководством и поправьте, если
+            нужно: в ТОиР уйдёт то, что вы подтвердите.
+          </p>
+        </Notice>
+      )}
+
+      {stage.kind === 'edit' && !initial.appliedFields.includes('источники') && initial.rejectedReferences.length === 0 && (
+        <Notice tone="warning" title="Источник не указан" quiet>
+          <p>
+            Помощник не назвал страницу руководства для заявки. Укажите источник сами: без руководства и страницы
+            заявка не отправится. Если помощник написал, что процедуры в руководстве нет, сначала проведите ручную
+            дефектовку и оформите заявку после неё.
           </p>
         </Notice>
       )}
@@ -258,7 +269,7 @@ export function TicketCard({ diagnosis, suggestion, vehicle, session, onClosed }
 
       {stage.kind === 'cancelled' && (
         <p>
-          В ТОиР ничего не отправлено. Чтобы начать заново, нажмите «Оформить заявку на дефектовку» под
+          В ТОиР ничего не отправлено. Чтобы начать заново, нажмите «Создать заявку на дефектовку» под
           результатом диагностики.
         </p>
       )}

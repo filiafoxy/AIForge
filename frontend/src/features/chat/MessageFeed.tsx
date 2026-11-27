@@ -72,8 +72,8 @@ export function MessageFeed({
 
     return (
       <div className={styles.followUp}>
-        <Button disabled={openTicket !== null} onClick={() => onStartTicket(diagnosis)}>
-          Оформить заявку на дефектовку
+        <Button variant="primary" disabled={openTicket !== null} onClick={() => onStartTicket(diagnosis)}>
+          Создать заявку на дефектовку
         </Button>
         {hint !== null && <p className={styles.pending}>{hint}</p>}
       </div>
@@ -97,7 +97,18 @@ export function MessageFeed({
           <>
             <p className={styles.author}>Вы</p>
             {/* Текст механика выводится как есть, без разбора разметки. */}
-            <p className={styles.bubble}>{message.text}</p>
+            {message.text !== '' && <p className={styles.bubble}>{message.text}</p>}
+            {message.images.length > 0 && (
+              <ul className={styles.images} aria-label="Приложенные изображения">
+                {message.images.map((image) => (
+                  <li key={image.url}>
+                    <a href={image.url} target="_blank" rel="noreferrer noopener" title="Открыть изображение">
+                      <img className={styles.image} src={image.url} alt={`Приложено: ${image.name}`} />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </>
         );
       case 'assistant':

@@ -88,7 +88,11 @@ interface PostOptions {
 }
 
 /**
- * Отправляет `POST` с JSON-телом на адрес `url` и возвращает тело ответа текстом, как оно пришло.
+ * Отправляет `POST` на адрес `url` и возвращает тело ответа текстом, как оно пришло.
+ * Тело — `FormData` (`multipart/form-data`) или любое значение, которое уходит JSON-ом.
+ *
+ * `Content-Type` для `FormData` не задаётся: его выставляет браузер вместе с границей частей.
+ * Вручную заданный заголовок оставил бы запрос без границы, и сервис не разобрал бы тело.
  *
  * Любой сбой превращается в `ApiError`. Исключение одно: если запрос отменила вызывающая
  * сторона через `signal`, наружу уходит исходная ошибка отмены — это не сбой сервиса.
@@ -110,12 +114,16 @@ export async function postForText(url: string | null, body: unknown, options: Po
   // Запрет на отправку отсюда не следует — сервис на этом же компьютере отвечает и без сети.
   const wasOffline = !navigator.onLine;
 
+  const isForm = body instanceof FormData;
+
   let response: Response;
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(body),
+      headers: isForm
+        ? { Accept: 'application/json' }
+        : { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: isForm ? body : JSON.stringify(body),
       signal: abortSignals.length > 0 ? AbortSignal.any(abortSignals) : undefined,
     });
   } catch (cause) {

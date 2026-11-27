@@ -51,6 +51,18 @@ function readAnswer(responseText: string): string | null {
   return findAnswerText(body);
 }
 
+/** Запрос с файлами: те же поля, что в JSON, строками, и по части `files` на каждый файл. */
+function toFormData(request: AgentRequest, files: readonly File[]): FormData {
+  const form = new FormData();
+  for (const [name, value] of Object.entries(request)) {
+    form.append(name, value);
+  }
+  for (const file of files) {
+    form.append('files', file, file.name);
+  }
+  return form;
+}
+
 /**
  * Отправляет вопрос агенту и возвращает текст его ответа.
  *
@@ -58,10 +70,20 @@ function readAnswer(responseText: string): string | null {
  * заключение занимает несколько минут, и верхней границы у этого времени нет. Запрос кончается
  * ответом, обрывом соединения (его может разорвать и шлюз перед агентом) или отменой через `signal`.
  *
+ * Без изображений тело — JSON. С изображениями — `multipart/form-data`: поля запроса уходят
+ * строковыми частями, а каждое изображение — отдельной частью с именем `files`.
+ *
  * @throws ApiError при любом сбое; ошибку отмены — если запрос отменён через `signal`.
  */
-export async function sendAgentMessage(request: AgentRequest, signal?: AbortSignal): Promise<string> {
-  const responseText = await postForText(agentUrl, request, { signal, timeoutMs: null });
+export async function sendAgentMessage(
+  request: AgentRequest,
+  options: { signal?: AbortSignal; files?: readonly File[] } = {},
+): Promise<string> {
+  const { signal, files = [] } = options;
+  const responseText = await postForText(agentUrl, files.length > 0 ? toFormData(request, files) : request, {
+    signal,
+    timeoutMs: null,
+  });
 
   const answer = readAnswer(responseText);
   if (answer === null) {

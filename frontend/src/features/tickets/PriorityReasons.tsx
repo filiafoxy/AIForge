@@ -6,23 +6,25 @@ import styles from './TicketCard.module.css';
 interface PriorityReasonsProps {
   /** Приоритет, выбранный в заявке. */
   urgency: TicketUrgency;
-  /** Расчёт приложения: предложенный приоритет и его основания. */
+  /** Предложенный приоритет, его автор и основания. */
   assessment: PriorityAssessment;
 }
 
 /**
- * Обоснование приоритета (FR-08): как приложение его посчитало.
- * Если механик выбрал другой приоритет, это сказано прямо — расчёт тогда остаётся для справки.
+ * Обоснование приоритета (FR-08): кто его предложил и почему.
+ * Если механик выбрал другой приоритет, это сказано прямо — предложение тогда остаётся для справки.
  */
 export function PriorityReasons({ urgency, assessment }: PriorityReasonsProps) {
   const isChangedByMechanic = urgency !== assessment.urgency;
+  const proposed = URGENCY_TEXT[assessment.urgency];
+  const author = assessment.source === 'agent' ? 'Помощник' : 'Расчёт приложения (помощник приоритет не назвал)';
 
   return (
     <div className={styles.reasons}>
       <p>
         {isChangedByMechanic
-          ? `Приоритет выбран механиком. Расчёт приложения предлагал ${URGENCY_TEXT[assessment.urgency]}:`
-          : `Расчёт приложения — ${URGENCY_TEXT[assessment.urgency]}:`}
+          ? `Приоритет выбран механиком. ${author} предлагал ${proposed}:`
+          : `${author} — ${proposed}:`}
       </p>
       <ul className={styles.list}>
         {assessment.reasons.map((reason) => (

@@ -1,7 +1,9 @@
-// Приоритет заявки (FR-08): расчёт по эвристике команды и его обоснование для механика.
+// Приоритет заявки (FR-08): приоритет помощника с его обоснованием или, если он не назван,
+// расчёт по эвристике команды.
 // Только данные и правила, без разметки.
 
 import { HIGH_RISK_FAULT_CODES, PRIORITY_CONFIDENCE_THRESHOLD } from '../../config/heuristics';
+import type { AgentTicketDraft } from '../../types/agent';
 import type { DiagnoseResponse } from '../../types/diagnosis';
 import type { TicketUrgency } from '../../types/ticket';
 import { formatPercent, formatScore } from '../../utils/formatNumber';
@@ -10,7 +12,12 @@ import { DEVIATION_LEVEL_TEXT, formatConfidence, getSuspectedFault } from '../di
 
 export interface PriorityAssessment {
   urgency: TicketUrgency;
-  /** Обоснование по шагам: из чего сложился приоритет и что в нём не учтено. */
+  /**
+   * Кто назвал приоритет: `agent` — помощник, `app` — запасной расчёт приложения
+   * (когда помощник приоритет не назвал).
+   */
+  source: 'agent' | 'app';
+  /** Обоснование: для расчёта приложения — по шагам, для помощника — его слова. */
   reasons: string[];
 }
 
@@ -77,5 +84,21 @@ export function assessPriority(result: DiagnoseResponse): PriorityAssessment {
     'Критичность узла по руководству в расчёте не учтена. Уточните её у помощника и при необходимости измените приоритет.',
   );
 
-  return { urgency: URGENCY_LEVELS[level], reasons };
+  return { urgency: URGENCY_LEVELS[level], source: 'app', reasons };
+}
+
+/**
+ * Приоритет заявки: тот, что назвал помощник (он знает критичность узла по руководству и историю
+ * проверок), а если не назвал — запасной расчёт приложения.
+ */
+export function resolvePriority(suggestion: AgentTicketDraft | null, fallback: PriorityAssessment): PriorityAssessment {
+  if (suggestion === null || suggestion.urgency === null) return fallback;
+  return {
+    urgency: suggestion.urgency,
+    source: 'agent',
+    reasons: [
+      suggestion.urgencyReason ??
+        'Помощник не объяснил, как получил этот приоритет. Уточните это у него в чате.',
+    ],
+  };
 }

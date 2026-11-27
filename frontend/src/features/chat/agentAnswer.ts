@@ -3,6 +3,7 @@
 
 import { isRecord } from '../../api/http';
 import type { AgentReference, AgentTicketDraft } from '../../types/agent';
+import type { TicketUrgency } from '../../types/ticket';
 
 export interface AgentAnswer {
   /** Текст для ленты в разметке Markdown, без рассуждений и без блока с черновиком. */
@@ -57,7 +58,37 @@ function splitThinking(answer: string): { text: string; thinking: string | null 
 const MAX_ITEMS = 30;
 const MAX_ITEM_LENGTH = 500;
 const MAX_CONCLUSION_LENGTH = 2000;
-const DRAFT_FIELDS = ['conclusion', 'operations', 'spare_parts', 'references'];
+const MAX_REASON_LENGTH = 1000;
+const DRAFT_FIELDS = ['conclusion', 'operations', 'spare_parts', 'references', 'urgency', 'priority'];
+
+/** Приоритет словами агента: по-английски (как в заявке) или по-русски (как в вердикте). */
+function toUrgency(value: unknown): TicketUrgency | null {
+  if (typeof value !== 'string') return null;
+  const word = value.trim().toLocaleLowerCase('ru-RU');
+  if (word === 'low' || word.startsWith('низк')) return 'low';
+  if (word === 'medium' || word.startsWith('средн')) return 'medium';
+  if (word === 'high' || word.startsWith('высок')) return 'high';
+  return null;
+}
+
+/**
+ * Приоритет из текста ответа, если агент назвал его строкой вида «Приоритет: высокий. Обоснование: …»
+ * (так требует формат вердикта) и не приложил его в блоке JSON. Берётся только строка,
+ * которая целиком начинается со слова «Приоритет»: упоминание в середине фразы не считается.
+ */
+const TEXT_PRIORITY_PATTERN = /^[\s>*#_-]*Приоритет(?:\s+заявки)?[*_\s]*[:—–-][*_\s]*(низк|средн|высок)\p{L}*(.*)$/imu;
+const TEXT_REASON_PATTERN = /Обоснование[*_\s]*:?[*_\s]*([^\n]+)/iu;
+
+function findTextPriority(text: string): { urgency: TicketUrgency; reason: string | null } | null {
+  const match = TEXT_PRIORITY_PATTERN.exec(text);
+  const urgency = match === null ? null : toUrgency(match[1]);
+  if (match === null || urgency === null) return null;
+
+  const rest = match[2].replace(/^[\s*_.,;:—–-]+/, '').replace(/[*_]+$/, '').trim();
+  const labelled = TEXT_REASON_PATTERN.exec(rest !== '' ? rest : text.slice(match.index + match[0].length));
+  const reason = (labelled?.[1] ?? rest).replace(/[*_]+/g, '').trim().slice(0, MAX_REASON_LENGTH);
+  return { urgency, reason: reason === '' ? null : reason };
+}
 
 /** Блок кода с объектом JSON: ```json { … } ```. Метка языка необязательна. */
 const JSON_BLOCK_PATTERN = /```[a-z]*\s*(\{[\s\S]*?\})\s*```/gi;
@@ -102,12 +133,15 @@ function toDraft(value: unknown): AgentTicketDraft | null {
 
   const draft: AgentTicketDraft = {
     conclusion: toText(value.conclusion, MAX_CONCLUSION_LENGTH),
+    urgency: toUrgency(value.urgency ?? value.priority),
+    urgencyReason: toText(value.urgency_reason ?? value.priority_reason, MAX_REASON_LENGTH),
     operations: toTextList(value.operations),
     spareParts: toTextList(value.spare_parts),
     references: toReferences(value.references),
   };
   const isEmpty =
     draft.conclusion === null &&
+    draft.urgency === null &&
     draft.operations.length === 0 &&
     draft.spareParts.length === 0 &&
     draft.references.length === 0;
@@ -166,10 +200,27 @@ export function parseAgentAnswer(answer: string): AgentAnswer | null {
     }
   }
 
-  const draft = drafts.at(-1) ?? null;
+  let draft = drafts.at(-1) ?? null;
+  const hasJsonDraft = draft !== null;
   text = text.replace(/\n{3,}/g, '\n\n').trim();
   // Подпись к убранному блоку («Черновик заявки:») без самого блока ничего не значит.
-  if (draft !== null) text = text.replace(/\n[^\n]{0,60}:$/, '').trim();
+  if (hasJsonDraft) text = text.replace(/\n[^\n]{0,60}:$/, '').trim();
+
+  // Приоритет не пришёл в блоке JSON, но назван в тексте вердикта — берём его оттуда.
+  if (draft?.urgency == null) {
+    const stated = findTextPriority(text);
+    if (stated !== null) {
+      draft = {
+        conclusion: null,
+        operations: [],
+        spareParts: [],
+        references: [],
+        ...draft,
+        urgency: stated.urgency,
+        urgencyReason: draft?.urgencyReason ?? stated.reason,
+      };
+    }
+  }
   if (text === '') {
     if (draft === null) return null;
     text = draft.conclusion ?? ONLY_DRAFT_TEXT;
