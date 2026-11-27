@@ -5,7 +5,9 @@
   padding: clamp(var(--space-3), 4vw, var(--space-4));
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background:
+    linear-gradient(180deg, var(--color-surface-raised) 0%, var(--color-surface) 100%);
+  box-shadow: var(--shadow-sm);
 }
 
 .label {
@@ -13,24 +15,41 @@
   font-weight: 600;
 }
 
-/* На узком экране две кнопки не оставляют полю места: они переходят на строку ниже, к правому краю. */
-.inputRow {
+/*
+  Поле сообщения — одна рамка: сверху текст, снизу справа значки вложения и диктовки.
+  Так кнопки всегда выровнены с полем и не перескакивают на отдельную строку.
+*/
+.editor {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: var(--space-2);
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 70%) inset;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.editor:hover {
+  border-color: var(--color-border-strong);
+}
+
+.editor:focus-within {
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
 }
 
 .field {
-  flex: 1 1 14rem;
+  display: block;
+  width: 100%;
   min-width: 0;
   min-height: 4rem;
   max-height: 12rem;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: var(--space-3);
+  padding-bottom: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: transparent;
   color: var(--color-text);
   /* Не меньше 16px: иначе iOS увеличивает страницу при фокусе. */
   font: inherit;
@@ -39,8 +58,16 @@
   field-sizing: content;
 }
 
-.field:hover {
-  border-color: var(--color-text-muted);
+.field:focus {
+  outline: none;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2);
 }
 
 .footer {

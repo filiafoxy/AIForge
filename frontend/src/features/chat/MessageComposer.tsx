@@ -158,7 +158,8 @@ export function MessageComposer({ isSending, onSend }: MessageComposerProps) {
         Сообщение помощнику
       </label>
 
-      <div className={styles.inputRow}>
+      {/* Поле и значки в одной рамке: так скрепка и микрофон не «висят» рядом с textarea. */}
+      <div className={styles.editor}>
         <textarea
           id={fieldId}
           className={styles.field}
@@ -180,24 +181,28 @@ export function MessageComposer({ isSending, onSend }: MessageComposerProps) {
           aria-hidden="true"
           onChange={(event) => void addFiles(event)}
         />
-        <Button
-          aria-label="Прикрепить изображение"
-          title="Прикрепить изображение"
-          disabled={attachments.length >= MAX_IMAGES || isPreparing}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <PaperclipIcon />
-        </Button>
-        {speech.availability === 'available' && (
+        <div className={styles.tools}>
           <Button
-            aria-label="Голосовой ввод"
-            aria-pressed={speech.isListening}
-            title={speech.isListening ? 'Закончить запись' : 'Продиктовать сообщение'}
-            onClick={speech.toggle}
+            iconOnly
+            aria-label="Прикрепить изображение"
+            title="Прикрепить изображение"
+            disabled={attachments.length >= MAX_IMAGES || isPreparing}
+            onClick={() => fileInputRef.current?.click()}
           >
-            <MicrophoneIcon />
+            <PaperclipIcon />
           </Button>
-        )}
+          {speech.availability === 'available' && (
+            <Button
+              iconOnly
+              aria-label="Голосовой ввод"
+              aria-pressed={speech.isListening}
+              title={speech.isListening ? 'Закончить запись' : 'Продиктовать сообщение'}
+              onClick={speech.toggle}
+            >
+              <MicrophoneIcon />
+            </Button>
+          )}
+        </div>
       </div>
 
       {attachments.length > 0 && (

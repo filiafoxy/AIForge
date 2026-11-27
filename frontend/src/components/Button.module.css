@@ -12,28 +12,42 @@
   line-height: 1.25;
   text-align: center;
   cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .button:disabled {
   border-color: transparent;
   background: var(--color-disabled-bg);
   color: var(--color-disabled-text);
+  box-shadow: none;
   cursor: not-allowed;
 }
 
 .primary {
-  background: var(--color-accent-strong);
+  background: linear-gradient(180deg, #c96112 0%, var(--color-accent-strong) 100%);
   color: #fff;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 18%) inset, 0 6px 14px rgb(185 82 10 / 28%);
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-accent-stronger);
+  background: linear-gradient(180deg, var(--color-accent-strong) 0%, var(--color-accent-stronger) 100%);
+}
+
+.primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 12%) inset, 0 2px 6px rgb(185 82 10 / 22%);
 }
 
 .secondary {
   border-color: var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-surface-raised);
   color: var(--color-text);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 70%) inset;
 }
 
 .secondary:hover:not(:disabled) {
@@ -44,6 +58,34 @@
 /* Кнопка-переключатель во включённом состоянии. */
 .secondary[aria-pressed='true'] {
   border-color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-stronger);
+  box-shadow: none;
+}
+
+/* Кнопка со значком: квадрат с той же высотой нажатия, без лишних полей по бокам. */
+.iconOnly {
+  width: var(--control-height);
+  min-width: var(--control-height);
+  padding: 0;
+}
+
+/* Внутри поля ввода вторичная рамка лишняя: значок читается на фоне поля. */
+.secondary.iconOnly {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+}
+
+.secondary.iconOnly:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--color-neutral-soft);
+  color: var(--color-text);
+}
+
+.secondary.iconOnly[aria-pressed='true'] {
+  border-color: transparent;
   background: var(--color-accent-soft);
   color: var(--color-accent-stronger);
 }
@@ -68,5 +110,11 @@
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;
+  }
+
+  .button,
+  .primary:active:not(:disabled) {
+    transition: none;
+    transform: none;
   }
 }

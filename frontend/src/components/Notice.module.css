@@ -4,7 +4,9 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border: 1px solid;
+  border-left-width: 4px;
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   overflow-wrap: anywhere;
 }
 
@@ -21,5 +23,5 @@
 }
 
 .title {
-  font-weight: 600;
+  font-weight: 700;
 }

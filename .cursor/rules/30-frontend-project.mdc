@@ -220,6 +220,12 @@ before changing one.
 - Interactive targets are at least `--control-height` (44px) tall.
 - Prefer native controls; every input has a visible label; errors and
   warnings use `Notice`.
+- Visual language: service-bay diagnostics — graphite header, steel
+  page background, amber signal accent from the logo, IBM Plex Sans /
+  Mono via Google Fonts (fallbacks remain). Keep one soft elevation
+  shadow; do not switch to purple themes, dark mode as default, glow
+  stacks, or pill-heavy chrome. Prefer CSS-only visual polish over
+  markup/logic changes.
 
 ## Workflow and Verification
 

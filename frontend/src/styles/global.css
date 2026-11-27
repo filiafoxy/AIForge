@@ -15,11 +15,26 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--color-bg);
+  /* Фон: холодный свет сервисной зоны + едва заметная «акустическая» сетка. */
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(ellipse 90% 42% at 50% -8%, var(--color-accent-glow), transparent 58%),
+    linear-gradient(180deg, var(--color-bg-accent) 0%, var(--color-bg) 32%),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 47px,
+      rgb(20 26 31 / 2.2%) 47px,
+      rgb(20 26 31 / 2.2%) 48px
+    );
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-family);
   font-size: var(--font-size-md);
   line-height: var(--line-height);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
@@ -53,4 +68,15 @@ code {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

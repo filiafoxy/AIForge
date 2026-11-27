@@ -2,12 +2,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: clamp(var(--space-3), 4vw, var(--space-4));
+  padding: clamp(var(--space-3), 4vw, var(--space-5));
   border: 1px solid var(--color-border);
   /* Цветная полоса сверху показывает шаг оформления; смысл всегда продублирован заголовком. */
   border-top: 4px solid var(--card-accent, var(--color-accent));
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background:
+    linear-gradient(180deg, var(--color-surface-raised) 0%, var(--color-surface) 100%);
+  box-shadow: var(--shadow-sm);
   overflow-wrap: anywhere;
 }
 
@@ -38,6 +40,8 @@
 
 .title {
   font-size: var(--font-size-lg);
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-tight);
   line-height: 1.25;
 }
 
@@ -88,14 +92,21 @@
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-surface-raised);
   color: var(--color-text);
   /* Не меньше 16px: иначе iOS увеличивает страницу при фокусе. */
   font: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .input:hover {
-  border-color: var(--color-text-muted);
+  border-color: var(--color-border-strong);
+}
+
+.input:focus {
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
+  outline: none;
 }
 
 .input[aria-invalid='true'] {
@@ -125,13 +136,19 @@
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
   cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .option:hover,
 .option:has(.radio:checked) {
   border-color: var(--color-accent-strong);
   background: var(--color-accent-soft);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Рамку фокуса рисуем вокруг всей строки, а не вокруг кружка. */
@@ -178,6 +195,7 @@
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 55%);
 }
 
 /* На телефоне кнопка удаления во всю ширину строки. */

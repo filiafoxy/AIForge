@@ -6,8 +6,34 @@
 }
 
 .header {
-  background: var(--color-header-bg);
+  position: relative;
+  background:
+    linear-gradient(180deg, var(--color-header-bg-top) 0%, var(--color-header-bg) 100%);
   color: var(--color-header-text);
+  box-shadow: var(--shadow-header);
+  overflow: hidden;
+}
+
+/* Сигнальная полоса и едва заметная «осциллограмма» — намёк на акустическую диагностику. */
+.header::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-accent-stronger), var(--color-accent), #f0a354);
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='64' viewBox='0 0 240 64' fill='none'%3E%3Cpath d='M0 32h28l10-18 14 36 12-28 10 18h28l8-12 12 24 10-18 8 12h40l10-16 14 32 12-24 8 12h36' stroke='%23e8730c' stroke-opacity='0.16' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12% center;
+  background-size: min(52vw, 320px) auto;
+  pointer-events: none;
+  opacity: 0.9;
 }
 
 .headerInner,
@@ -19,43 +45,52 @@
 }
 
 .headerInner {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding-block: var(--space-3);
+  padding-block: calc(var(--space-3) + 2px) calc(var(--space-3) + 4px);
 }
 
 .logo {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   color: var(--color-accent);
+  filter: drop-shadow(0 2px 6px rgb(232 115 12 / 35%));
 }
 
 .brand {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  gap: 2px;
 }
 
 /* У файла логотипа непрозрачный белый фон, поэтому на тёмной шапке он оформлен как белая плашка. */
 .developerLogo {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   margin-left: auto;
+  border: 1px solid rgb(255 255 255 / 18%);
   border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
 }
 
 .title {
   font-size: var(--font-size-lg);
-  font-weight: 600;
-  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: 1.15;
 }
 
 .subtitle {
   color: var(--color-header-text-muted);
   font-size: var(--font-size-sm);
+  font-weight: 500;
 }
 
 /* Уточнение показываем, только когда оно помещается в строку рядом с логотипом разработчика. */
@@ -74,5 +109,5 @@
   flex: 1;
   flex-direction: column;
   gap: var(--space-4);
-  padding-block: var(--space-4) var(--space-6);
+  padding-block: var(--space-5) var(--space-6);
 }

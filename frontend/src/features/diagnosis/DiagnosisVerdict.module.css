@@ -7,7 +7,9 @@
   /* Цветная полоса сверху повторяет вид вердикта; смысл при этом всегда продублирован текстом метки. */
   border-top: 4px solid var(--verdict-accent);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background:
+    linear-gradient(180deg, var(--color-surface-raised) 0%, var(--color-surface) 100%);
+  box-shadow: var(--shadow-sm);
   overflow-wrap: anywhere;
 }
 

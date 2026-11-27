@@ -6,11 +6,17 @@ interface ButtonProps extends Omit<ComponentProps<'button'>, 'className'> {
   variant?: 'primary' | 'secondary';
   /** Действие выполняется: кнопка показывает индикатор и не принимает повторных нажатий. */
   isBusy?: boolean;
+  /**
+   * Квадратная кнопка только со значком (микрофон, скрепка). Размер области нажатия
+   * тот же, что у обычной кнопки; подпись передавайте через `aria-label`.
+   */
+  iconOnly?: boolean;
 }
 
 export function Button({
   variant = 'secondary',
   isBusy = false,
+  iconOnly = false,
   type = 'button',
   disabled,
   children,
@@ -19,7 +25,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`${styles.button} ${styles[variant]}`}
+      className={`${styles.button} ${styles[variant]}${iconOnly ? ` ${styles.iconOnly}` : ''}`}
       disabled={disabled || isBusy}
       aria-busy={isBusy || undefined}
       {...buttonProps}

@@ -1,4 +1,28 @@
 .title {
-  font-size: var(--font-size-xl);
-  line-height: 1.25;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-display);
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: 1.2;
+}
+
+.title::before {
+  content: 'Сервисный стенд';
+  width: fit-content;
+  color: var(--color-accent-stronger);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.title::after {
+  content: '';
+  width: 3.25rem;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-accent-strong), var(--color-accent));
 }

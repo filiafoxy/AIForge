@@ -4,9 +4,10 @@
   z-index: 1;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-warning-border);
+  border-left-width: 4px;
   border-radius: var(--radius-md);
   background: var(--color-warning-bg);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  box-shadow: var(--shadow-sm);
   color: var(--color-warning-text);
   font-size: var(--font-size-sm);
   overflow-wrap: anywhere;

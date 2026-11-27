@@ -23,14 +23,22 @@
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-surface-raised);
   color: var(--color-text);
   /* Не меньше 16px: иначе iOS увеличивает страницу при фокусе. */
   font: inherit;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 70%) inset;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .searchInput:hover {
-  border-color: var(--color-text-muted);
+  border-color: var(--color-border-strong);
+}
+
+.searchInput:focus {
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
+  outline: none;
 }
 
 .count,
@@ -56,31 +64,43 @@
   gap: var(--space-1) var(--space-2);
   width: 100%;
   min-height: var(--control-height);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-surface-raised);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 65%) inset;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .item:hover,
 .item[aria-current='true'] {
   border-color: var(--color-accent-strong);
   background: var(--color-accent-soft);
+  box-shadow: var(--shadow-sm);
+}
+
+.item[aria-current='true'] {
+  transform: translateY(-1px);
 }
 
 .plate {
   font-family: var(--font-family-mono);
   font-size: var(--font-size-lg);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--letter-spacing-plate);
 }
 
 .engine {
-  padding: 2px var(--space-2);
+  padding: 3px var(--space-2);
+  border: 1px solid rgb(20 26 31 / 6%);
   border-radius: var(--radius-md);
   background: var(--color-neutral-soft);
   font-size: var(--font-size-sm);
@@ -92,4 +112,12 @@
   grid-column: 1 / -1;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .item[aria-current='true'] {
+    transition: none;
+    transform: none;
+  }
 }
