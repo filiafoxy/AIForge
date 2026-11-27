@@ -13,7 +13,11 @@ export const mlServiceUrl = normalizeBaseUrl(import.meta.env.VITE_MOCK_ML_URL);
 /** Базовый адрес Mock ТОиР без завершающего `/`; `null`, если переменная не задана. */
 export const toirServiceUrl = normalizeBaseUrl(import.meta.env.VITE_MOCK_TOIR_URL);
 
+/** Полный адрес вебхука ИИ-агента; `null`, если переменная не задана. */
+export const agentUrl = normalizeBaseUrl(import.meta.env.VITE_AGENT_URL);
+
 /** Имена незаданных переменных — для подсказки в интерфейсе. */
 export const missingEnvVars: string[] = [];
 if (mlServiceUrl === null) missingEnvVars.push('VITE_MOCK_ML_URL');
 if (toirServiceUrl === null) missingEnvVars.push('VITE_MOCK_TOIR_URL');
+if (agentUrl === null) missingEnvVars.push('VITE_AGENT_URL');

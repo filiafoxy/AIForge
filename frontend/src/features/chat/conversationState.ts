@@ -82,12 +82,3 @@ export function conversationReducer(state: ConversationState, action: Conversati
       };
   }
 }
-
-/** Последний результат диагностики в диалоге или `null`, если его ещё не запрашивали. */
-export function getLatestDiagnosis(messages: readonly ChatMessage[]): DiagnoseResponse | null {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index];
-    if (message.kind === 'verdict') return message.result;
-  }
-  return null;
-}

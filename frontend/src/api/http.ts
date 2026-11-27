@@ -1,7 +1,7 @@
 // Общий HTTP-слой для внешних сервисов: один POST с JSON и единая классификация сбоев.
 // Текстов для интерфейса здесь нет — их подбирает вызывающая сторона по `ApiError.kind`.
 
-/** Сколько ждём ответа сервиса, прежде чем считать запрос зависшим. */
+/** Сколько ждём ответа сервиса, прежде чем считать запрос зависшим. Клиент может задать своё время. */
 export const REQUEST_TIMEOUT_MS = 15_000;
 
 /**
@@ -9,7 +9,7 @@ export const REQUEST_TIMEOUT_MS = 15_000;
  *
  * - `not_configured` — адрес сервиса не задан в окружении;
  * - `network` — до сервиса не достучались (не запущен, нет сети, запрет CORS);
- * - `timeout` — сервис не ответил за `REQUEST_TIMEOUT_MS`;
+ * - `timeout` — сервис не ответил за отведённое время;
  * - `not_found` — HTTP 404: сервис не знает такие идентификаторы;
  * - `validation` — HTTP 422: тело запроса не по схеме;
  * - `http` — любой другой неуспешный код ответа;
@@ -59,32 +59,40 @@ function errorKindForStatus(httpStatus: number): ApiErrorKind {
   return 'http';
 }
 
-/** Достаёт `detail` из тела ошибки FastAPI: строку при 404, список замечаний при 422. */
+/**
+ * Достаёт пояснение из тела ошибки: `detail` у FastAPI (строка при 404, список замечаний при 422)
+ * или `message` у n8n.
+ */
 async function readServiceDetail(response: Response): Promise<string | null> {
   try {
     const body: unknown = await response.json();
-    if (!isRecord(body) || body.detail === undefined) return null;
-    return typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
+    if (!isRecord(body)) return null;
+    const detail = body.detail ?? body.message;
+    if (detail === undefined) return null;
+    return typeof detail === 'string' ? detail : JSON.stringify(detail);
   } catch {
     return null;
   }
 }
 
+interface PostOptions {
+  /** Отмена запроса вызывающей стороной. */
+  signal?: AbortSignal;
+  /** Сколько ждать ответа; по умолчанию `REQUEST_TIMEOUT_MS`. */
+  timeoutMs?: number;
+}
+
 /**
- * Отправляет `POST {baseUrl}{path}` с JSON-телом и возвращает разобранный JSON ответа.
+ * Отправляет `POST` с JSON-телом на адрес `url` и возвращает тело ответа текстом, как оно пришло.
  *
  * Любой сбой превращается в `ApiError`. Исключение одно: если запрос отменила вызывающая
  * сторона через `signal`, наружу уходит исходная ошибка отмены — это не сбой сервиса.
  */
-export async function postJson(
-  baseUrl: string | null,
-  path: string,
-  body: unknown,
-  signal?: AbortSignal,
-): Promise<unknown> {
-  if (baseUrl === null) throw new ApiError('not_configured');
+export async function postForText(url: string | null, body: unknown, options: PostOptions = {}): Promise<string> {
+  if (url === null) throw new ApiError('not_configured');
 
-  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const { signal, timeoutMs = REQUEST_TIMEOUT_MS } = options;
+  const timeout = AbortSignal.timeout(timeoutMs);
 
   // Отмена и таймаут могут сработать и при отправке, и при чтении тела ответа.
   function toTransportError(cause: unknown, fallbackKind: ApiErrorKind): unknown {
@@ -94,7 +102,7 @@ export async function postJson(
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`, {
+    response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
@@ -112,8 +120,27 @@ export async function postJson(
   }
 
   try {
-    return await response.json();
+    return await response.text();
   } catch (cause) {
     throw toTransportError(cause, 'invalid_response');
+  }
+}
+
+/**
+ * Отправляет `POST {baseUrl}{path}` с JSON-телом и возвращает разобранный JSON ответа.
+ *
+ * @throws ApiError при любом сбое; ошибку отмены — если запрос отменён через `signal`.
+ */
+export async function postJson(
+  baseUrl: string | null,
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const text = await postForText(baseUrl === null ? null : `${baseUrl}${path}`, body, { signal });
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (cause) {
+    throw new ApiError('invalid_response', { httpStatus: 200, cause });
   }
 }

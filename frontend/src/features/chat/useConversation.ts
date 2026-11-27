@@ -1,11 +1,14 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
+import { sendAgentMessage } from '../../api/agentClient';
 import { ApiError } from '../../api/http';
 import { fetchDiagnosis } from '../../api/mlClient';
+import type { AgentRequest } from '../../types/agent';
 import type { DiagnoseRequest } from '../../types/diagnosis';
 import type { Session, Vehicle } from '../../types/fleet';
+import { createRandomId } from '../../utils/createRandomId';
 import { describeDiagnosisError } from '../diagnosis/diagnosisErrorMessage';
-import { askAgent } from './agent';
-import { conversationReducer, EMPTY_CONVERSATION, getLatestDiagnosis } from './conversationState';
+import { describeAgentError } from './agentErrorMessage';
+import { conversationReducer, EMPTY_CONVERSATION } from './conversationState';
 import type { ChatMessage } from './conversationState';
 
 interface UseConversationResult {
@@ -27,6 +30,9 @@ interface UseConversationResult {
  */
 export function useConversation(vehicle: Vehicle | null, session: Session | null): UseConversationResult {
   const [state, dispatch] = useReducer(conversationReducer, EMPTY_CONVERSATION);
+  // Идентификатор диалога для агента. Новый диалог на экране — новый идентификатор:
+  // агент не должен помнить разговор о другой машине, когда механик уже выбрал эту.
+  const [conversationId] = useState(createRandomId);
   const diagnosisRequestRef = useRef<AbortController | null>(null);
   const agentRequestRef = useRef<AbortController | null>(null);
 
@@ -65,21 +71,26 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
     const question = text.trim();
     if (vehicle === null || session === null || question === '' || state.isAgentPending) return;
 
+    const request: AgentRequest = {
+      message: question,
+      vehicle_id: vehicle.vehicle_id,
+      engine_model: vehicle.engine_model,
+      session_id: session.session_id,
+      client_id: conversationId,
+    };
     const controller = new AbortController();
     agentRequestRef.current = controller;
     dispatch({ type: 'question_sent', text: question });
 
-    askAgent(
-      { text: question, vehicle, session, diagnosis: getLatestDiagnosis(state.messages) },
-      controller.signal,
-    ).then(
+    sendAgentMessage(request, controller.signal).then(
       (answer) => {
-        if (!controller.signal.aborted) dispatch({ type: 'answer_received', text: answer.text });
+        if (!controller.signal.aborted) dispatch({ type: 'answer_received', text: answer });
       },
       (cause: unknown) => {
         if (controller.signal.aborted) return;
-        console.error('Помощник не ответил:', cause);
-        dispatch({ type: 'answer_failed', text: 'Помощник не ответил. Отправьте сообщение ещё раз.' });
+        const error = cause instanceof ApiError ? cause : new ApiError('unknown', { cause });
+        console.error('Помощник не ответил:', error, error.serviceDetail ?? '');
+        dispatch({ type: 'answer_failed', text: describeAgentError(error) });
       },
     );
   }

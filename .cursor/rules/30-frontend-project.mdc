@@ -48,9 +48,16 @@ before changing one.
   live in the pure reducer `features/chat/conversationState.ts`.
 - The feed is `role="log"`: do not move focus to new messages, and pass
   `quiet` to any `Notice` rendered inside it.
-- `askAgent` in `features/chat/agent.ts` is the only seam to the AI
-  agent. It is a stub until the agent contract exists; keep the agent
-  URL out of the repository (it will come from `.env`).
+- Questions go to the AI agent through `api/agentClient.ts`
+  (`sendAgentMessage`): one POST to the webhook in `VITE_AGENT_URL` with
+  `message`, `vehicle_id`, `engine_model`, `session_id`, `client_id`.
+- `client_id` is the conversation id: created once per conversation in
+  `useConversation`, so it changes whenever the conversation restarts.
+- The agent's response format is not fixed. `agentClient.ts` accepts the
+  variants listed in `frontend/README.md`; update both together.
+- Keep the real webhook URL out of the repository: it lives only in the
+  local `.env`; `.env.example` keeps `VITE_AGENT_URL` empty. The agent
+  needs the company VPN, so verify agent code with faked responses.
 - Voice input (`useSpeechInput`) puts recognized text into the field and
   never sends it. Hide the mic button when recognition is unavailable
   and say why.
@@ -60,7 +67,7 @@ before changing one.
 ## Service Calls
 
 - Service URLs come only from `.env` (`VITE_MOCK_ML_URL`,
-  `VITE_MOCK_TOIR_URL`). No fallback URLs in code.
+  `VITE_MOCK_TOIR_URL`, `VITE_AGENT_URL`). No fallback URLs in code.
 - API code throws `ApiError` with a `kind`; the feature maps `kind` to
   user-facing text. No UI strings in `src/api/`.
 - Check every external response with a type guard before using it.
