@@ -218,30 +218,25 @@ export function findLatestDraft(messages: readonly ChatMessage[]): AgentTicketDr
  * Сообщение, под которым стоит кнопка заявки. Кнопка в диалоге одна.
  *
  * Механик может начать не с кнопки диагностики, а сразу с вопроса вроде «Выдай результат
- * сканирования»: тогда у ответа помощника нет `analysisOf`, но по сути это и есть заключение.
- * Поэтому заключением считается:
+ * сканирования»: тогда у ответа помощника нет `analysisOf`. Заключением для заявки считается:
  * 1. ответ на кнопку диагностики (у него есть `analysisOf`);
- * 2. ответ, в котором помощник приложил черновик заявки;
- * 3. если таких нет, последний ответ помощника: механик уже начал разговор о результате.
- * Из подходящих выбирается самый поздний, но (3) уступает (1) и (2).
+ * 2. ответ, в котором помощник приложил черновик заявки, — только если приложение знает результат
+ *    диагностики (`knownDiagnosis`, см. `ConversationState`).
+ * Из подходящих выбирается самый поздний. Обычный ответ на вопрос без черновика кнопку не получает
+ * и не переносит её с прежнего заключения.
  *
- * Без ответа помощника заявка не предлагается: механик ещё не знает, что показала проверка.
- * `knownDiagnosis` — результат диагностики, который приложение получило само (см. `ConversationState`);
- * у ответа на кнопку берётся его собственный результат. `null` — места для кнопки нет.
- * Можно ли оформить заявку по результату, решает вызывающий.
+ * `knownDiagnosis` берётся у ответа на вопрос только для (2); у ответа на кнопку — свой результат.
+ * `null` — места для кнопки нет. Можно ли оформить заявку по результату, решает вызывающий.
  */
 export function findTicketAnchor(
   messages: readonly ChatMessage[],
   knownDiagnosis: DiagnoseResponse | null,
 ): { id: number; diagnosis: DiagnoseResponse } | null {
-  let latestAnswerId: number | null = null;
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
     if (message.kind !== 'assistant') continue;
     if (message.analysisOf !== null) return { id: message.id, diagnosis: message.analysisOf };
     if (message.draft !== null && knownDiagnosis !== null) return { id: message.id, diagnosis: knownDiagnosis };
-    latestAnswerId ??= message.id;
   }
-  if (latestAnswerId !== null && knownDiagnosis !== null) return { id: latestAnswerId, diagnosis: knownDiagnosis };
   return null;
 }
