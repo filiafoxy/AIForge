@@ -64,13 +64,13 @@ before changing one.
   `message`, `vehicle_id`, `engine_model`, `session_id`, `client_id`.
   The diagnosis result is not sent, neither as a field nor in the text.
 - The diagnosis button calls ML, then sends the agent a request for a
-  conclusion built by `buildAnalysisRequest` in
-  `features/chat/analysisRequest.ts`. The request is the same for every
-  outcome: it tells the agent what to do for a failed analysis, low
-  confidence, a normal result, and a reliable anomaly (a ticket draft
-  only in the last case), and lists manual names from
-  `config/manuals.ts`. When the prompt changes, update
-  `frontend/README.md` too.
+  conclusion: the constant `ANALYSIS_REQUEST` in
+  `features/chat/analysisRequest.ts`. Keep it short, by the user's
+  decision: the agent has its own prompt with the answer rules, so do
+  not add rules, thresholds, manual names, or an output format to the
+  message. When the text changes, update `frontend/README.md` too.
+- The ticket draft format (a fenced JSON block) is not requested by the
+  app; it works only if the agent's own prompt asks for it.
 - Only one agent request runs at a time: a conclusion and a question
   never overlap.
 - Agent requests have no client-side timeout (`timeoutMs: null`), by the

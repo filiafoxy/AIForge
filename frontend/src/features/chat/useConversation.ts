@@ -9,7 +9,7 @@ import { describeDiagnosisError } from '../diagnosis/diagnosisErrorMessage';
 import { parseAgentAnswer } from './agentAnswer';
 import type { AgentAnswer } from './agentAnswer';
 import { describeAgentError } from './agentErrorMessage';
-import { buildAnalysisRequest } from './analysisRequest';
+import { ANALYSIS_REQUEST } from './analysisRequest';
 import { conversationReducer, EMPTY_CONVERSATION } from './conversationState';
 import type { ChatMessage } from './conversationState';
 
@@ -96,7 +96,7 @@ export function useConversation(vehicle: Vehicle | null, session: Session | null
     analysisRequestRef.current = controller;
     dispatch({ type: 'analysis_requested' });
 
-    askAgent(buildAnalysisRequest(vehicle, session), controller.signal).then(
+    askAgent(ANALYSIS_REQUEST, controller.signal).then(
       (answer) => {
         if (controller.signal.aborted) return;
         analysisRequestRef.current = null;
