@@ -7,6 +7,8 @@ export function describeDiagnosisError(error: ApiError, request: DiagnoseRequest
   switch (error.kind) {
     case 'not_configured':
       return 'Адрес сервиса диагностики не задан в настройках приложения. Обратитесь к администратору.';
+    case 'offline':
+      return 'Нет подключения к сети, запрос не отправлен. Когда связь появится, запросите результат ещё раз.';
     case 'network':
       return 'Сервис диагностики недоступен. Проверьте, что он запущен и есть связь, и повторите запрос.';
     case 'timeout':

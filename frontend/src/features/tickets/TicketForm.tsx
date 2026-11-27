@@ -162,7 +162,7 @@ export function TicketForm({
         <legend className={styles.label}>Источники</legend>
         <p className={styles.hint}>
           Руководство и страница PDF, на которые опирается заявка. Номер страницы берите из ответа помощника или из
-          самого руководства: приложение его не подставляет.
+          самого руководства и сверяйте его с документом.
         </p>
 
         {draft.references.map((row, index) => {

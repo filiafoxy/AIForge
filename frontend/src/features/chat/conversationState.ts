@@ -1,22 +1,33 @@
 // Лента диалога: какие в ней бывают сообщения и как она меняется.
 // Только данные и правила, без запросов и разметки.
 
+import type { AgentTicketDraft } from '../../types/agent';
 import type { DiagnoseResponse } from '../../types/diagnosis';
 
 type MessageContent =
   /** Сообщение механика. */
   | { kind: 'user'; text: string }
-  /** Текстовый ответ помощника. */
-  | { kind: 'assistant'; text: string }
-  /** Результат диагностики: в ленте показывается вердиктом. */
-  | { kind: 'verdict'; result: DiagnoseResponse }
+  /**
+   * Текстовый ответ помощника. `analysisOf` — результат диагностики, по которому это заключение;
+   * `null` у ответа на вопрос механика. `draft` — черновик заявки, если помощник его приложил.
+   */
+  | { kind: 'assistant'; text: string; analysisOf: DiagnoseResponse | null; draft: AgentTicketDraft | null }
   /**
    * Заявка на дефектовку по результату `diagnosis`. `open` — механик её оформляет;
    * остальное — оформление закончено. Поля заявки лента не хранит: они живут в карточке.
+   * `suggestion` — черновик помощника, которым заполнена форма.
    */
-  | { kind: 'ticket'; diagnosis: DiagnoseResponse; status: 'open' | 'created' | 'cancelled' }
-  /** Запрос не выполнен: что случилось и что делать. */
-  | { kind: 'error'; title: string; text: string };
+  | {
+      kind: 'ticket';
+      diagnosis: DiagnoseResponse;
+      suggestion: AgentTicketDraft | null;
+      status: 'open' | 'created' | 'cancelled';
+    }
+  /**
+   * Запрос не выполнен: что случилось и что делать. `analysisOf` — результат диагностики,
+   * заключение по которому не получено: по нему запрос можно повторить.
+   */
+  | { kind: 'error'; title: string; text: string; analysisOf: DiagnoseResponse | null };
 
 export type ChatMessage = MessageContent & {
   /** Порядковый номер в ленте. Сообщения только добавляются, поэтому номер не меняется. */
@@ -25,16 +36,23 @@ export type ChatMessage = MessageContent & {
 
 export interface ConversationState {
   messages: readonly ChatMessage[];
+  /** Приложение ждёт результат от сервиса диагностики. */
   isDiagnosisPending: boolean;
+  /** Помощник отвечает на вопрос механика. */
   isAgentPending: boolean;
+  /** Помощник готовит заключение по результату диагностики. */
+  isAnalysisPending: boolean;
 }
 
 export type ConversationAction =
   | { type: 'diagnosis_requested' }
-  | { type: 'diagnosis_received'; result: DiagnoseResponse }
+  | { type: 'diagnosis_received' }
   | { type: 'diagnosis_failed'; text: string }
+  | { type: 'analysis_requested' }
+  | { type: 'analysis_received'; diagnosis: DiagnoseResponse; text: string; draft: AgentTicketDraft | null }
+  | { type: 'analysis_failed'; diagnosis: DiagnoseResponse; text: string }
   | { type: 'question_sent'; text: string }
-  | { type: 'answer_received'; text: string }
+  | { type: 'answer_received'; text: string; draft: AgentTicketDraft | null }
   | { type: 'answer_failed'; text: string }
   | { type: 'ticket_started'; diagnosis: DiagnoseResponse }
   | { type: 'ticket_closed'; messageId: number; status: 'created' | 'cancelled' };
@@ -43,6 +61,7 @@ export const EMPTY_CONVERSATION: ConversationState = {
   messages: [],
   isDiagnosisPending: false,
   isAgentPending: false,
+  isAnalysisPending: false,
 };
 
 function withMessage(state: ConversationState, content: MessageContent): readonly ChatMessage[] {
@@ -54,11 +73,9 @@ export function conversationReducer(state: ConversationState, action: Conversati
     case 'diagnosis_requested':
       return { ...state, isDiagnosisPending: true };
     case 'diagnosis_received':
-      return {
-        ...state,
-        isDiagnosisPending: false,
-        messages: withMessage(state, { kind: 'verdict', result: action.result }),
-      };
+      // Сам результат в ленту не попадает: механику его пересказывает помощник в заключении.
+      // Приложению он нужен для заявки и хранится в сообщении с заключением.
+      return { ...state, isDiagnosisPending: false };
     case 'diagnosis_failed':
       return {
         ...state,
@@ -67,6 +84,31 @@ export function conversationReducer(state: ConversationState, action: Conversati
           kind: 'error',
           title: 'Результат диагностики не получен',
           text: action.text,
+          analysisOf: null,
+        }),
+      };
+    case 'analysis_requested':
+      return { ...state, isAnalysisPending: true };
+    case 'analysis_received':
+      return {
+        ...state,
+        isAnalysisPending: false,
+        messages: withMessage(state, {
+          kind: 'assistant',
+          text: action.text,
+          analysisOf: action.diagnosis,
+          draft: action.draft,
+        }),
+      };
+    case 'analysis_failed':
+      return {
+        ...state,
+        isAnalysisPending: false,
+        messages: withMessage(state, {
+          kind: 'error',
+          title: 'Заключение помощника не получено',
+          text: action.text,
+          analysisOf: action.diagnosis,
         }),
       };
     case 'question_sent':
@@ -79,20 +121,25 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return {
         ...state,
         isAgentPending: false,
-        messages: withMessage(state, { kind: 'assistant', text: action.text }),
+        messages: withMessage(state, { kind: 'assistant', text: action.text, analysisOf: null, draft: action.draft }),
       };
     case 'answer_failed':
       return {
         ...state,
         isAgentPending: false,
-        messages: withMessage(state, { kind: 'error', title: 'Ответ не получен', text: action.text }),
+        messages: withMessage(state, { kind: 'error', title: 'Ответ не получен', text: action.text, analysisOf: null }),
       };
     case 'ticket_started':
       // Одновременно оформляется одна заявка: две открытые формы легко перепутать.
       if (hasOpenTicket(state.messages)) return state;
       return {
         ...state,
-        messages: withMessage(state, { kind: 'ticket', diagnosis: action.diagnosis, status: 'open' }),
+        messages: withMessage(state, {
+          kind: 'ticket',
+          diagnosis: action.diagnosis,
+          suggestion: findLatestDraft(state.messages),
+          status: 'open',
+        }),
       };
     case 'ticket_closed':
       return {
@@ -106,7 +153,44 @@ export function conversationReducer(state: ConversationState, action: Conversati
   }
 }
 
+export type TicketMessage = Extract<ChatMessage, { kind: 'ticket' }>;
+
+/** Заявка, которую механик ещё оформляет. Такая в диалоге не больше одной. */
+export function findOpenTicket(messages: readonly ChatMessage[]): TicketMessage | null {
+  for (const message of messages) {
+    if (message.kind === 'ticket' && message.status === 'open') return message;
+  }
+  return null;
+}
+
 /** Есть ли в диалоге заявка, которую механик ещё оформляет. */
 export function hasOpenTicket(messages: readonly ChatMessage[]): boolean {
-  return messages.some((message) => message.kind === 'ticket' && message.status === 'open');
+  return findOpenTicket(messages) !== null;
+}
+
+/**
+ * Последний черновик заявки от помощника. Диалог относится к одной проверке, поэтому более
+ * поздний черновик заменяет прежний: механик мог попросить помощника что-то в нём поправить.
+ */
+export function findLatestDraft(messages: readonly ChatMessage[]): AgentTicketDraft | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.kind === 'assistant' && message.draft !== null) return message.draft;
+  }
+  return null;
+}
+
+/**
+ * Сообщение, под которым стоит кнопка заявки: последнее заключение помощника. Кнопка в диалоге одна.
+ * Без заключения заявка не предлагается: механик ещё не знает, что показала проверка.
+ * `null` — заключения в ленте нет. Можно ли оформить заявку по результату, решает вызывающий.
+ */
+export function findTicketAnchor(messages: readonly ChatMessage[]): { id: number; diagnosis: DiagnoseResponse } | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.kind === 'assistant' && message.analysisOf !== null) {
+      return { id: message.id, diagnosis: message.analysisOf };
+    }
+  }
+  return null;
 }

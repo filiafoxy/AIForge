@@ -4,6 +4,7 @@ import { createTicket } from '../../api/toirClient';
 import { Button } from '../../components/Button';
 import { Notice } from '../../components/Notice';
 import { getManualsForEngine } from '../../config/manuals';
+import type { AgentTicketDraft } from '../../types/agent';
 import type { DiagnoseResponse } from '../../types/diagnosis';
 import type { Session, Vehicle } from '../../types/fleet';
 import type { TicketRequest } from '../../types/ticket';
@@ -12,7 +13,7 @@ import { getSuspectedFault } from '../diagnosis/verdict';
 import { assessPriority } from './priority';
 import { TicketForm } from './TicketForm';
 import { TicketReview } from './TicketReview';
-import { buildInitialDraft, NO_DRAFT_ERRORS, validateDraft } from './ticketDraft';
+import { applyAgentSuggestion, buildInitialDraft, NO_DRAFT_ERRORS, validateDraft } from './ticketDraft';
 import { describeTicketError } from './ticketErrorMessage';
 import { addTicketToHistory, useTicketHistory } from './ticketHistoryStore';
 import styles from './TicketCard.module.css';
@@ -20,6 +21,8 @@ import styles from './TicketCard.module.css';
 interface TicketCardProps {
   /** Результат диагностики, по которому оформляется заявка. */
   diagnosis: DiagnoseResponse;
+  /** Черновик заявки от помощника: им заполняется форма. `null` — помощник черновика не дал. */
+  suggestion: AgentTicketDraft | null;
   vehicle: Vehicle;
   session: Session;
   /** Оформление закончено: заявка создана или механик от неё отказался. */
@@ -43,14 +46,20 @@ type Stage =
  * Заявка на дефектовку в ленте диалога: заполнение, предпросмотр и отправка в ТОиР (FR-07 — FR-09).
  * Запрос в ТОиР уходит только по кнопке подтверждения на шаге предпросмотра.
  */
-export function TicketCard({ diagnosis, vehicle, session, onClosed }: TicketCardProps) {
+export function TicketCard({ diagnosis, suggestion, vehicle, session, onClosed }: TicketCardProps) {
   const manuals = getManualsForEngine(vehicle.engine_model);
   const assessment = assessPriority(diagnosis);
   const faultTitle = getSuspectedFault(diagnosis);
 
-  const [draft, setDraft] = useState(() =>
-    buildInitialDraft(diagnosis, vehicle, session, assessment.urgency, manuals),
+  // Черновик собирается один раз, при открытии карточки: дальше его правит механик.
+  const [initial] = useState(() =>
+    applyAgentSuggestion(
+      buildInitialDraft(diagnosis, vehicle, session, assessment.urgency, manuals),
+      suggestion,
+      manuals,
+    ),
   );
+  const [draft, setDraft] = useState(initial.draft);
   const [stage, setStage] = useState<Stage>({ kind: 'edit' });
   // Замечания к форме показываются после первой попытки перейти к предпросмотру и дальше следуют за правками.
   const [areErrorsShown, setAreErrorsShown] = useState(false);
@@ -159,6 +168,24 @@ export function TicketCard({ diagnosis, vehicle, session, onClosed }: TicketCard
           <p>
             Для двигателя {vehicle.engine_model} в приложении нет руководств, поэтому указать источник и отправить
             заявку не получится.
+          </p>
+        </Notice>
+      )}
+
+      {stage.kind === 'edit' && initial.isApplied && (
+        <Notice tone="warning" title="Форма заполнена по черновику помощника" quiet>
+          <p>
+            Заключение, работы, запчасти и источники предложил помощник. Сверьте их с руководством и поправьте,
+            если нужно: в ТОиР уйдёт то, что вы подтвердите.
+          </p>
+        </Notice>
+      )}
+
+      {stage.kind === 'edit' && initial.rejectedReferences.length > 0 && (
+        <Notice tone="warning" title="Часть источников помощника не добавлена" quiet>
+          <p>
+            Этих документов нет среди руководств двигателя {vehicle.engine_model} или в них нет такой страницы:{' '}
+            {initial.rejectedReferences.join('; ')}.
           </p>
         </Notice>
       )}

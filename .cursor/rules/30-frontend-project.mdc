@@ -19,7 +19,9 @@ before changing one.
 
 - `src/features/<feature>/` — one feature: its components, hook, and
   pure logic. Existing: `selection`, `diagnosis`, `chat`, `tickets`.
-- `src/components/` — shared UI only: `AppLayout`, `Button`, `Panel`, `Notice`.
+- `src/components/` — shared UI only: `AppLayout`, `Button`, `Panel`,
+  `Notice`, and the page-level notices (`MissingEnvNotice`,
+  `InsecureUrlNotice`, `OfflineNotice`).
 - `src/api/` — `http.ts` (`postJson`, `ApiError`) and one client per service.
 - `src/config/env.ts` — the only place that reads `import.meta.env`.
 - `src/config/heuristics.ts` — team thresholds: low confidence,
@@ -30,15 +32,21 @@ before changing one.
 - `src/types/` — API contracts and fleet data shapes.
 - `src/pages/` — composition only: wires features together.
 
-## Diagnosis Verdict
+## Diagnosis Result
 
-- Pure logic lives in `features/diagnosis/verdict.ts` and
-  `assessment.ts`. The UI only renders the view-model.
-- Verdict kind depends on `status`, `signal_quality`, and `confidence`
-  only. Treat `description` as untrusted plain text: show it, never let
-  it change the verdict kind.
-- `signal_quality = bad` is a failed analysis, same as `check_failed`,
-  whatever the `status`: no fault name, symptoms, score, or confidence.
+- The mechanic learns the result from the AI agent's conclusion. The
+  agent's workflow fetches the ML result itself; the app sends it
+  nothing from the ML response.
+- The app still calls `POST /diagnose`, but only for the ticket: the
+  response is never shown in the feed. It decides whether a ticket is
+  offered and supplies the fault code and the priority inputs.
+- The app's own verdict card is switched off by the user's decision
+  ("for now"). `DiagnosisVerdict.tsx` and `buildVerdict` are kept but
+  not rendered. Do not bring the card back or delete it without asking.
+- Reliability rules live in `features/diagnosis/assessment.ts` and
+  depend on `status`, `signal_quality`, and `confidence` only.
+  `signal_quality = bad` is a failed analysis, same as `check_failed`,
+  whatever the `status`. Never let `description` change a decision.
 - Do not show F-codes (`F01`…`F14`) to the mechanic.
 
 ## Chat
@@ -46,13 +54,34 @@ before changing one.
 - The conversation belongs to one vehicle/session pair. `Conversation`
   remounts its inner component by `key` when the selection changes, so
   hooks inside never track selection changes themselves.
-- The verdict and request errors are feed messages. State transitions
-  live in the pure reducer `features/chat/conversationState.ts`.
+- The agent's conclusion, answers, tickets, and request errors are feed
+  messages. State transitions live in the pure reducer
+  `features/chat/conversationState.ts`.
 - The feed is `role="log"`: do not move focus to new messages, and pass
   `quiet` to any `Notice` rendered inside it.
-- Questions go to the AI agent through `api/agentClient.ts`
+- Everything for the AI agent goes through `api/agentClient.ts`
   (`sendAgentMessage`): one POST to the webhook in `VITE_AGENT_URL` with
   `message`, `vehicle_id`, `engine_model`, `session_id`, `client_id`.
+  The diagnosis result is not sent, neither as a field nor in the text.
+- The diagnosis button calls ML, then sends the agent a request for a
+  conclusion built by `buildAnalysisRequest` in
+  `features/chat/analysisRequest.ts`. The request is the same for every
+  outcome: it tells the agent what to do for a failed analysis, low
+  confidence, a normal result, and a reliable anomaly (a ticket draft
+  only in the last case), and lists manual names from
+  `config/manuals.ts`. When the prompt changes, update
+  `frontend/README.md` too.
+- Only one agent request runs at a time: a conclusion and a question
+  never overlap.
+- Agent requests have no client-side timeout (`timeoutMs: null`), by the
+  user's decision: a conclusion takes several minutes. ML and TOIR keep
+  the default 15 s.
+- `features/chat/agentAnswer.ts` splits an answer into text and an
+  optional ticket draft (a fenced JSON block). Raw JSON never reaches
+  the feed, even when the block cannot be parsed.
+- A failed conclusion request offers a retry and no ticket. The ticket
+  button is shown once, under the message returned by
+  `findTicketAnchor` (the latest conclusion).
 - `client_id` is the conversation id: created once per conversation in
   `useConversation`, so it changes whenever the conversation restarts.
 - The agent's response format is not fixed. `agentClient.ts` accepts the
@@ -71,14 +100,21 @@ before changing one.
 - A ticket is a feed message (`kind: 'ticket'`) rendered by
   `features/tickets/TicketCard`: form → review → created or cancelled.
   Only one ticket can be open at a time.
-- Offer a ticket only when `canRequestTicket` is true: a reliable
-  anomaly verdict with a known fault code.
+- Offer a ticket only when `canRequestTicket` is true for the ML
+  result: a reliable anomaly with a known fault code. The agent's text
+  or draft never enables a ticket on its own.
 - `POST /tickets` is sent only from the review step, by the explicit
   confirm button, with exactly the request shown there. Editing or
   cancelling sends nothing.
 - Never invent references. The manual comes from `config/manuals.ts`
-  for the vehicle's engine; the page number is typed by the mechanic
-  and checked against the manual's page count. No default page.
+  for the vehicle's engine; the page number comes from the agent's
+  draft or is typed by the mechanic, and is checked against the
+  manual's page count. No default page.
+- The agent's draft is a suggestion. `applyAgentSuggestion` in
+  `ticketDraft.ts` fills the form when the ticket is opened, drops
+  references to other engines' manuals or to pages beyond the page
+  count, and lists the dropped ones for the mechanic. The form says
+  that the agent wrote the text. Priority is never taken from the agent.
 - Do not copy the ML `description` into the ticket: build the
   conclusion from structured fields only.
 - Priority comes from `features/tickets/priority.ts` together with its
@@ -98,6 +134,13 @@ before changing one.
   `VITE_MOCK_TOIR_URL`, `VITE_AGENT_URL`). No fallback URLs in code.
 - API code throws `ApiError` with a `kind`; the feature maps `kind` to
   user-facing text. No UI strings in `src/api/`.
+- `kind: 'offline'` means the device had no network when the request
+  was sent, so the request did not leave. Never block a request because
+  `navigator.onLine` is false: services on the same machine still answer.
+- Stand builds read service URLs from `.env.production.local`. On an
+  HTTPS page a non-loopback `http://` service URL is blocked by the
+  browser; `findInsecureEnvVars` in `config/env.ts` reports it and
+  `InsecureUrlNotice` shows it.
 - Check every external response with a type guard before using it.
 - A diagnosis result comes only from the ML service. `Session` holds just
   `session_id` and `checked_at` on purpose; do not read results from
@@ -126,6 +169,9 @@ before changing one.
   update MVP first, then the checkpoints — never the other way around.
 - Run `npm run typecheck` and `npm run build` in `frontend/`.
 - Check behaviour in the browser at desktop width and at 320px.
+- `npm run preview` serves the production build on
+  `http://localhost:4173`. It is a different origin, so its ticket
+  history is separate from the dev server's.
 - Dev server: `http://localhost:5173`. `127.0.0.1:5173` does not work,
   because Vite binds to `localhost` only.
 - For verification always use the local mock: ML on `127.0.0.1:8001`,

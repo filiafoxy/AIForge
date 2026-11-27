@@ -1,14 +1,15 @@
 // Общий HTTP-слой для внешних сервисов: один POST с JSON и единая классификация сбоев.
 // Текстов для интерфейса здесь нет — их подбирает вызывающая сторона по `ApiError.kind`.
 
-/** Сколько ждём ответа сервиса, прежде чем считать запрос зависшим. Клиент может задать своё время. */
+/** Сколько ждём ответа сервиса, прежде чем считать запрос зависшим. Клиент может задать своё время или снять ограничение. */
 export const REQUEST_TIMEOUT_MS = 15_000;
 
 /**
  * Причина сбоя запроса.
  *
  * - `not_configured` — адрес сервиса не задан в окружении;
- * - `network` — до сервиса не достучались (не запущен, нет сети, запрет CORS);
+ * - `offline` — запрос не ушёл: устройство не было подключено к сети уже в момент отправки;
+ * - `network` — до сервиса не достучались (не запущен, недоступен из этой сети, запрет CORS);
  * - `timeout` — сервис не ответил за отведённое время;
  * - `not_found` — HTTP 404: сервис не знает такие идентификаторы;
  * - `validation` — HTTP 422: тело запроса не по схеме;
@@ -18,6 +19,7 @@ export const REQUEST_TIMEOUT_MS = 15_000;
  */
 export type ApiErrorKind =
   | 'not_configured'
+  | 'offline'
   | 'network'
   | 'timeout'
   | 'not_found'
@@ -78,8 +80,11 @@ async function readServiceDetail(response: Response): Promise<string | null> {
 interface PostOptions {
   /** Отмена запроса вызывающей стороной. */
   signal?: AbortSignal;
-  /** Сколько ждать ответа; по умолчанию `REQUEST_TIMEOUT_MS`. */
-  timeoutMs?: number;
+  /**
+   * Сколько ждать ответа; по умолчанию `REQUEST_TIMEOUT_MS`. `null` — ждать без ограничения:
+   * запрос закончится ответом, обрывом соединения или отменой через `signal`.
+   */
+  timeoutMs?: number | null;
 }
 
 /**
@@ -92,13 +97,18 @@ export async function postForText(url: string | null, body: unknown, options: Po
   if (url === null) throw new ApiError('not_configured');
 
   const { signal, timeoutMs = REQUEST_TIMEOUT_MS } = options;
-  const timeout = AbortSignal.timeout(timeoutMs);
+  const timeout = timeoutMs === null ? null : AbortSignal.timeout(timeoutMs);
+  const abortSignals = [signal, timeout].filter((item) => item != null);
 
   // Отмена и таймаут могут сработать и при отправке, и при чтении тела ответа.
   function toTransportError(cause: unknown, fallbackKind: ApiErrorKind): unknown {
     if (signal?.aborted) return cause;
-    return new ApiError(timeout.aborted ? 'timeout' : fallbackKind, { cause });
+    return new ApiError(timeout?.aborted ? 'timeout' : fallbackKind, { cause });
   }
+
+  // Запоминаем до отправки: если сети не было уже в этот момент, запрос точно не ушёл.
+  // Запрет на отправку отсюда не следует — сервис на этом же компьютере отвечает и без сети.
+  const wasOffline = !navigator.onLine;
 
   let response: Response;
   try {
@@ -106,10 +116,10 @@ export async function postForText(url: string | null, body: unknown, options: Po
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      signal: abortSignals.length > 0 ? AbortSignal.any(abortSignals) : undefined,
     });
   } catch (cause) {
-    throw toTransportError(cause, 'network');
+    throw toTransportError(cause, wasOffline ? 'offline' : 'network');
   }
 
   if (!response.ok) {

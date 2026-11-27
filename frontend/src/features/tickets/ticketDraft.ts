@@ -2,6 +2,7 @@
 // Только данные и правила, без запросов и разметки.
 
 import type { Manual } from '../../config/manuals';
+import type { AgentTicketDraft } from '../../types/agent';
 import type { DiagnoseResponse } from '../../types/diagnosis';
 import type { Session, Vehicle } from '../../types/fleet';
 import type { TicketReference, TicketRequest, TicketUrgency } from '../../types/ticket';
@@ -107,6 +108,92 @@ export function buildInitialDraft(
     spareParts: '',
     // Одна пустая строка источника: руководство выбрано, страницу вписывает механик.
     references: [{ id: 0, manual: manuals[0]?.name ?? '', page: '' }],
+  };
+}
+
+/** Что из черновика помощника попало в форму. */
+export interface AppliedSuggestion {
+  draft: TicketDraft;
+  /** Взято ли из черновика помощника хоть что-то. */
+  isApplied: boolean;
+  /**
+   * Ссылки помощника, которые в форму не попали: документа нет среди руководств этого двигателя
+   * или в нём нет такой страницы. Показываются механику текстом — решать ему.
+   */
+  rejectedReferences: string[];
+}
+
+/** Название документа без различий в регистре, кавычках, пробелах и расширении файла. */
+function normalizeManualName(name: string): string {
+  return name
+    .toLocaleLowerCase('ru-RU')
+    .replace(/\.pdf$/, '')
+    .replace(/[«»"'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Ищет руководство двигателя по названию, которое дал помощник. Совпадением считается то же
+ * название или название, целиком входящее в другое: помощник мог сократить его или дополнить.
+ * Неполное совпадение принимается, только если подходит одно руководство: угадывать между двумя нельзя.
+ */
+function findManual(name: string, manuals: readonly Manual[]): Manual | undefined {
+  const wanted = normalizeManualName(name);
+  if (wanted === '') return undefined;
+
+  const exact = manuals.find((manual) => normalizeManualName(manual.name) === wanted);
+  if (exact !== undefined) return exact;
+
+  const partial = manuals.filter((manual) => {
+    const known = normalizeManualName(manual.name);
+    return wanted.includes(known) || known.includes(wanted);
+  });
+  return partial.length === 1 ? partial[0] : undefined;
+}
+
+/**
+ * Заполняет черновик тем, что предложил помощник.
+ *
+ * Берётся только пригодное. Ссылка попадает в форму, если документ есть среди руководств этого
+ * двигателя и страница в нём существует: так в заявку не попадёт чужое руководство или
+ * несуществующая страница. Приоритет помощник не задаёт — его считает приложение.
+ */
+export function applyAgentSuggestion(
+  base: TicketDraft,
+  suggestion: AgentTicketDraft | null,
+  manuals: readonly Manual[],
+): AppliedSuggestion {
+  if (suggestion === null) return { draft: base, isApplied: false, rejectedReferences: [] };
+
+  const references: ReferenceDraft[] = [];
+  const rejectedReferences: string[] = [];
+  for (const reference of suggestion.references) {
+    const manual = findManual(reference.manual, manuals);
+    if (manual === undefined || reference.page > manual.pageCount) {
+      rejectedReferences.push(`${reference.manual}, страница ${reference.page}`);
+      continue;
+    }
+    const page = String(reference.page);
+    if (!references.some((row) => row.manual === manual.name && row.page === page)) {
+      references.push({ id: references.length, manual: manual.name, page });
+    }
+  }
+
+  const conclusion = suggestion.conclusion?.slice(0, MAX_TEXT_LENGTH) ?? null;
+  const operations = suggestion.operations.join('\n').slice(0, MAX_TEXT_LENGTH);
+  const spareParts = suggestion.spareParts.join('\n').slice(0, MAX_TEXT_LENGTH);
+
+  return {
+    draft: {
+      ...base,
+      conclusion: conclusion ?? base.conclusion,
+      operations: operations !== '' ? operations : base.operations,
+      spareParts,
+      references: references.length > 0 ? references : base.references,
+    },
+    isApplied: conclusion !== null || operations !== '' || spareParts !== '' || references.length > 0,
+    rejectedReferences,
   };
 }
 

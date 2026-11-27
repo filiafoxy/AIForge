@@ -7,6 +7,8 @@ export function describeTicketError(error: ApiError, request: TicketRequest): st
   switch (error.kind) {
     case 'not_configured':
       return 'Адрес системы ТОиР не задан в настройках приложения. Заявка не отправлена. Обратитесь к администратору.';
+    case 'offline':
+      return 'Нет подключения к сети. Заявка не отправлена. Когда связь появится, подтвердите её ещё раз.';
     case 'network':
       return 'Система ТОиР недоступна. Заявка не отправлена. Проверьте связь и подтвердите заявку ещё раз.';
     case 'timeout':

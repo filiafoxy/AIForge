@@ -153,7 +153,10 @@ function buildAnomalyVerdict(result: DiagnoseResponse, vehicle: Vehicle, caution
     kind: 'anomaly',
     label: 'Обнаружено отклонение',
     title: fault !== null ? `Отклонение, предположительно: ${lowerFirst(fault)}` : 'Отклонение в звуке двигателя',
-    summary: ['Это предположение по звуку, а не подтверждённая неисправность. Подтвердите его проверкой.'],
+    summary: [
+      ...buildAnomalyKeyFacts(result),
+      'Это предположение по звуку, а не подтверждённая неисправность. Подтвердите его проверкой.',
+    ],
     caution,
     sections: [
       {
@@ -192,6 +195,24 @@ function buildAnomalyVerdict(result: DiagnoseResponse, vehicle: Vehicle, caution
     facts: buildFacts(result, true),
     factsNotes: [CONFIDENCE_RULE_TEXT, DEVIATION_SCALE_TEXT],
   };
+}
+
+/**
+ * Сила отклонения и уверенность модели одной строкой — для начала вердикта: по ним механик
+ * сразу видит, насколько это серьёзно. Подробности и пороги остаются в разделе показателей.
+ */
+function buildAnomalyKeyFacts(result: DiagnoseResponse): string[] {
+  const parts: string[] = [];
+  if (result.anomaly_score !== null) {
+    parts.push(`отклонение ${DEVIATION_LEVEL_TEXT[getDeviationLevel(result.anomaly_score)]}`);
+  }
+  if (result.confidence !== null) {
+    parts.push(`уверенность модели ${formatConfidence(result.confidence)}`);
+  }
+  if (parts.length === 0) return [];
+
+  const line = parts.join(', ');
+  return [`${line.charAt(0).toLocaleUpperCase('ru-RU')}${line.slice(1)}.`];
 }
 
 function buildUnreliableVerdict(result: DiagnoseResponse): Verdict {

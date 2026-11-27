@@ -4,9 +4,6 @@ import { agentUrl } from '../config/env';
 import type { AgentRequest } from '../types/agent';
 import { ApiError, isRecord, postForText } from './http';
 
-/** Агент ищет по руководствам и обращается к языковой модели, поэтому ждём его дольше остальных сервисов. */
-export const AGENT_TIMEOUT_MS = 120_000;
-
 /**
  * Поля, в которых может лежать текст ответа. Формат ответа с командой агента не закреплён,
  * поэтому принимаем распространённые варианты; `output` — то, что по умолчанию отдаёт агент в n8n.
@@ -57,10 +54,14 @@ function readAnswer(responseText: string): string | null {
 /**
  * Отправляет вопрос агенту и возвращает текст его ответа.
  *
+ * Время ожидания не ограничено: агент ищет по руководствам и обращается к языковой модели,
+ * заключение занимает несколько минут, и верхней границы у этого времени нет. Запрос кончается
+ * ответом, обрывом соединения (его может разорвать и шлюз перед агентом) или отменой через `signal`.
+ *
  * @throws ApiError при любом сбое; ошибку отмены — если запрос отменён через `signal`.
  */
 export async function sendAgentMessage(request: AgentRequest, signal?: AbortSignal): Promise<string> {
-  const responseText = await postForText(agentUrl, request, { signal, timeoutMs: AGENT_TIMEOUT_MS });
+  const responseText = await postForText(agentUrl, request, { signal, timeoutMs: null });
 
   const answer = readAnswer(responseText);
   if (answer === null) {

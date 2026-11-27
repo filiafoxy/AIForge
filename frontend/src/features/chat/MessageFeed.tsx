@@ -3,10 +3,9 @@ import { Button } from '../../components/Button';
 import { Notice } from '../../components/Notice';
 import type { DiagnoseResponse } from '../../types/diagnosis';
 import type { Session, Vehicle } from '../../types/fleet';
-import { DiagnosisVerdict } from '../diagnosis/DiagnosisVerdict';
 import { TicketCard } from '../tickets/TicketCard';
 import { canRequestTicket } from '../tickets/ticketDraft';
-import { hasOpenTicket } from './conversationState';
+import { findLatestDraft, findOpenTicket, findTicketAnchor } from './conversationState';
 import type { ChatMessage } from './conversationState';
 import styles from './MessageFeed.module.css';
 
@@ -14,13 +13,18 @@ interface MessageFeedProps {
   messages: readonly ChatMessage[];
   /** Что сейчас выполняется: по строке на каждый запрос, ответа на который ещё нет. */
   pendingNotes: readonly string[];
-  /** Машина и проверка, к которым относится диалог: нужны вердикту и заявке. */
+  /** Машина и проверка, к которым относится диалог: нужны заявке. */
   vehicle: Vehicle;
   session: Session;
+  /** Помощник готовит заключение по результату диагностики. */
+  isAnalysisPending: boolean;
+  /** Помощник отвечает на вопрос механика: заключение в это время запросить нельзя. */
+  isAnswerPending: boolean;
   /** Ссылка на последнее сообщение ленты — чтобы подвести его в поле зрения. */
   lastMessageRef: Ref<HTMLDivElement>;
   onStartTicket: (diagnosis: DiagnoseResponse) => void;
   onCloseTicket: (messageId: number, status: 'created' | 'cancelled') => void;
+  onRequestAnalysis: (diagnosis: DiagnoseResponse) => void;
 }
 
 /**
@@ -32,11 +36,58 @@ export function MessageFeed({
   pendingNotes,
   vehicle,
   session,
+  isAnalysisPending,
+  isAnswerPending,
   lastMessageRef,
   onStartTicket,
   onCloseTicket,
+  onRequestAnalysis,
 }: MessageFeedProps) {
-  const isTicketOpen = hasOpenTicket(messages);
+  const openTicket = findOpenTicket(messages);
+  const hasDraft = findLatestDraft(messages) !== null;
+
+  const ticketAnchor = findTicketAnchor(messages);
+
+  /**
+   * Кнопка заявки под заключением помощника. Подсказка объясняет, чем заполнится форма.
+   * Предлагать ли заявку, решает не текст помощника, а результат ML-сервиса: только
+   * по достоверному отклонению. В остальных случаях диагноза нет.
+   */
+  function renderTicketAction(message: ChatMessage): ReactNode {
+    if (ticketAnchor === null || ticketAnchor.id !== message.id) return null;
+    const { diagnosis } = ticketAnchor;
+    if (!canRequestTicket(diagnosis)) return null;
+
+    let hint: string | null = null;
+    if (openTicket !== null) {
+      // Черновик пришёл позже, чем открыли форму: сама она уже не изменится.
+      hint =
+        hasDraft && openTicket.suggestion === null
+          ? 'Заявка уже оформляется в этом диалоге. Чтобы заполнить её по черновику помощника, отмените её и оформите заново.'
+          : 'Заявка уже оформляется в этом диалоге.';
+    } else if (hasDraft) {
+      hint = 'Форма заполнится по черновику помощника. Проверьте его перед отправкой.';
+    }
+
+    return (
+      <div className={styles.followUp}>
+        <Button disabled={openTicket !== null} onClick={() => onStartTicket(diagnosis)}>
+          Оформить заявку на дефектовку
+        </Button>
+        {hint !== null && <p className={styles.pending}>{hint}</p>}
+      </div>
+    );
+  }
+
+  /** Последнее ли это сообщение о заключении по своему результату: только под ним уместен повтор запроса. */
+  function isLatestAnalysisMessage(message: ChatMessage, diagnosis: DiagnoseResponse): boolean {
+    return !messages.some(
+      (later) =>
+        later.id > message.id &&
+        (later.kind === 'assistant' || later.kind === 'error') &&
+        later.analysisOf === diagnosis,
+    );
+  }
 
   function renderMessage(message: ChatMessage): ReactNode {
     switch (message.kind) {
@@ -53,22 +104,7 @@ export function MessageFeed({
           <>
             <p className={styles.author}>Помощник</p>
             <p className={styles.bubble}>{message.text}</p>
-          </>
-        );
-      case 'verdict':
-        return (
-          <>
-            <p className={styles.author}>Помощник</p>
-            <DiagnosisVerdict result={message.result} vehicle={vehicle} session={session} />
-            {/* Заявка предлагается только по достоверному отклонению: в остальных случаях диагноза нет. */}
-            {canRequestTicket(message.result) && (
-              <div className={styles.followUp}>
-                <Button disabled={isTicketOpen} onClick={() => onStartTicket(message.result)}>
-                  Оформить заявку на дефектовку
-                </Button>
-                {isTicketOpen && <p className={styles.pending}>Заявка уже оформляется ниже в диалоге.</p>}
-              </div>
-            )}
+            {renderTicketAction(message)}
           </>
         );
       case 'ticket':
@@ -77,18 +113,34 @@ export function MessageFeed({
             <p className={styles.author}>Помощник</p>
             <TicketCard
               diagnosis={message.diagnosis}
+              suggestion={message.suggestion}
               vehicle={vehicle}
               session={session}
               onClosed={(outcome) => onCloseTicket(message.id, outcome)}
             />
           </>
         );
-      case 'error':
+      case 'error': {
+        const { analysisOf } = message;
         return (
-          <Notice tone="error" title={message.title} quiet>
-            <p>{message.text}</p>
-          </Notice>
+          <>
+            <Notice tone="error" title={message.title} quiet>
+              <p>{message.text}</p>
+            </Notice>
+            {analysisOf !== null && isLatestAnalysisMessage(message, analysisOf) && (
+              <div className={styles.followUp}>
+                <Button
+                  disabled={isAnswerPending}
+                  isBusy={isAnalysisPending}
+                  onClick={() => onRequestAnalysis(analysisOf)}
+                >
+                  {isAnalysisPending ? 'Запрашиваем заключение…' : 'Запросить заключение ещё раз'}
+                </Button>
+              </div>
+            )}
+          </>
         );
+      }
     }
   }
 
