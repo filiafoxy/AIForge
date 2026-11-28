@@ -1,0 +1,777 @@
+{
+  "name": "AG-HK-01",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "AG-HK-01",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "binaryPropertyName": "files"
+        }
+      },
+      "id": "3ee5cadf-c530-4c48-b3c2-013d690ce586",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -976,
+        -112
+      ],
+      "webhookId": "4a839da9-b8a2-45f8-bcaf-c484f9a5912d"
+    },
+    {
+      "parameters": {
+        "jsonMetadata": {
+          "customMetadata": "{\n  \"agent\": \"AG-HK-01\"\n}",
+          "sessionId": "={{ $execution.id }}",
+          "userId": "=hackathon@develonica.ru"
+        },
+        "model": {
+          "__rl": true,
+          "value": "minimax-m2.7",
+          "mode": "list",
+          "cachedResultName": "minimax-m2.7"
+        },
+        "options": {
+          "temperature": 0.2,
+          "timeout": 180000
+        }
+      },
+      "type": "@rlquilez/n8n-nodes-openai-litellm.lmChatOpenAiLitellm",
+      "typeVersion": 1.2,
+      "position": [
+        -112,
+        112
+      ],
+      "id": "03fb7856-aa60-4123-a94a-65231ab642f4",
+      "name": "OpenAI Chat Model with LiteLLM",
+      "credentials": {
+        "openAiApiWithLitellmApi": {
+          "id": "aLQ9SFx0ozrkEQ44",
+          "name": "OpenAI with LiteLLM account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.client_id }}",
+        "tableName": "chat_history_hackathon",
+        "contextWindowLength": 100
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.4,
+      "position": [
+        48,
+        112
+      ],
+      "id": "e3a19265-fbdd-4d50-8df7-347c7eba39cb",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "Xbbb5xESqkf85FXQ",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=User Message: {{ $json.chat_input }}\nEngine model: {{ $json.engine_model }}\nDiagnose: {{ $json.diagnose }}\nFilename: {{ $('Split by files').first().json.body.fileName }}",
+        "options": {
+          "systemMessage": "=Ты цифровой ассистент механника, у тебя есть база знаний в которую загружены документы по эксплуатации и ремонту различних двигателей.\nИспользуй свою базу знаний что бы помочь механику диагностировать проблему и починить её.\nЕсли тебе скидывают картинку (jpg, png) вызывай tool Image Processor\n\nУ тебя сейчас есть следующие документы:\n1) documentId: e35e1152-90da-48fb-9e4b-8f4c2ca4e4f0\nfileName: yamz-536_re_2016.pdf\nСсылка на файл: https://n8n-test.develonica.group/webhook/s3-download?bucket=ag-hk-01&fileId=yamz-536_re_2016.pdf&filename=yamz-536_re_2016.pdf\nДВИГАТЕЛИ: ЯМЗ-536, ЯМЗ-5361, ЯМЗ5362, ЯМЗ-5363, ЯМЗ-5364,\nих модификации и комплектации\nРуководство по эксплуатации\n536.3902150 РЭ\n\n2) documentId: ed7dfedb-5fc4-4513-a333-c676e6fdd8b2\nfileName: yamz-536_rk_2013.pdf\nСсылка на файл: https://n8n-test.develonica.group/webhook/s3-download?bucket=ag-hk-01&fileId=yamz-536_rk_2013.pdf&filename=yamz-536_rk_2013.pdf\nДВИГАТЕЛИ: ЯМЗ-536, ЯМЗ-53602, ЯМЗ-5361, ЯМЗ-53622, ЯМЗ-5363, ЯМЗ-53642,\nи их комплектации для автомобилей ОАО \"МАЗ\"\nРУКОВОДСТВО ПО РЕМОНТУ\n536.01.02 PK\n\n3) documentId: e14bb25f-ec72-44b1-b8f3-eed1e98e1b3a\nfileName: zmz-5234_rk_2025.pdf\nСсылка на файл: https://n8n-test.develonica.group/webhook/s3-download?bucket=ag-hk-01&fileId=zmz-5234_rk_2025.pdf&filename=zmz-5234_rk_2025.pdf\nДВИГАТЕЛИ: ЗМЗ-5234.10 и его исполнения (ЗМЗ-52341.10, ЗМЗ-52347.10)\nРуководство по ремонту (издание пятое)\n\n4) documentId: 3ee2a622-b7a8-48d4-b2e3-a827dc19dcf1\nfileName: zmz-40904-40905_rk_2025.pdf\nСсылка на файл: https://n8n-test.develonica.group/webhook/s3-download?bucket=ag-hk-01&fileId=zmz-40904-40905_rk_2025.pdf&filename=zmz-40904-40905_rk_2025.pdf\nДВИГАТЕЛИ: ЗМЗ – 40904.10 и ЗМЗ – 40905.10\nРуководство по эксплуатации, техническому обслуживанию и ремонту (издание десятое)\n \n5) documentId: 29fd9a9d-a795-4dfc-a56c-a0e75a5ef8af\nfileName: ЯМЗ_236_руководство по эксплуатации.pdf\nСсылка на файл: https://n8n-test.develonica.group/webhook/s3-download?bucket=ag-hk-01&fileId=ЯМЗ_236_руководство%20по%20эксплуатации.pdf&filename=ЯМЗ_236_руководство%20по%20эксплуатации.pdf\nДВИГАТЕЛИ: ЯМЗ-236М2, ЯМЗ-238М2\nРуководство по эксплуатации\n236-3902150-Б РЭ\n\n6) documentId: bc27b792-f2a4-43ca-9d0d-c84a909ee525\nfileName: ЯМЗ_236_руководство по РЕМОНТУ.pdf\nСсылка на файл: https://n8n-test.develonica.group/webhook/s3-download?bucket=ag-hk-01&fileId=ЯМЗ_236_руководство%20по%20РЕМОНТУ.pdf&filename=ЯМЗ_236_руководство%20по%20РЕМОНТУ.pdf\nДВИГАТЕЛИ: ЯМЗ-236, ЯМЗ-238\nРуководство по ремонту\n236.01.01 РК\n\n** CRITICAL ** Запрещенно использовать свои знания, используй только данные из инструкции для конкрентого двигателя, нельзя использовать данные из инструкций для других двигателей, нельзя изменять, дополнять или использовать свои знания.\n\nВсегда указывай полное название выявленной проблемы.\n\nПользуйся исключительно даными из инструкции соответсвующей типу двигателя пришедшему в запросе. Если источников несколько - ищи во всех.\n\nЕсли в документации ответа нет - так и пиши, что ответа на данный вопрос в документации не найдено. Не пытайся решить вопрос своими знаниями.\n\nВ ответе указывай источник и страницу. \n\nДобавляй черновик только при достоверном отклонении: status = anomaly, анализ выполнен, запись пригодна (signal_quality не bad), уверенность модели (confidence) не ниже 0.60. Во всех остальных случаях (норма, сбой записи, плохая запись, низкая уверенность) черновик не добавляй.\n\nЧерновик ставь в самом конце ответа, после всего текста. Это один блок, который начинается строкой ```json и заканчивается строкой ```. Внутри — один объект JSON такого вида:\n\n{\"conclusion\": \"…\", \"urgency\": \"…\", \"urgency_reason\": \"…\", \"operations\": [\"…\"], \"spare_parts\": [\"…\"], \"references\": [{\"manual\": \"…\", \"pdf_page\": 1}]}\n\nПоля:\n- conclusion — заключение для ремонтной службы, одно-три предложения простым языком.\n- urgency — приоритет заявки: одно из значений «Низкий», «Средний», «Высокий», «Критичный».\n- urgency_reason — почему выбран этот приоритет, одно предложение.\n- operations — работы по проверке и ремонту из руководства, каждая отдельным элементом списка. Если порядка работ в руководстве нет, один элемент: «Дефектовка узла …» с названием узла.\n- spare_parts — запчасти, которые руководство называет для этих работ. Если их нет — пустой список [].\n- references — только те страницы руководств, на которые ты опирался в ответе. manual — название документа точно так, как оно записано в базе знаний. pdf_page — номер страницы PDF (число, не номер печатной страницы). Если ссылок нет — пустой список [].\n\nПравила блока:\n- Ничего не выдумывай: ни работ, ни запчастей, ни страниц, ни названий документов. Нет данных — пустой список.\n- Ссылки только на руководства двигателя этой машины.\n- Код неисправности (F01…F14) в блок не включай.\n- Блок один, без текста после него.\n\n** Important ** для статусов (normal, check_failed), signal_quality = \"bad\" или при сбое диагностики заявка не создаётся.\n\nToday: {{ $now }}\n\nЕсли тебе бы передан файл (filename задан) всегда вызывай инструмент Image Processor, он передастся в этот инструмент автоматически\n\n**IMPORTANT** всегда отвечай на том же языке на каком был задан вопрос",
+          "maxIterations": 100,
+          "passthroughBinaryImages": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -48,
+        -128
+      ],
+      "id": "a0a145f2-3da7-45fd-a429-5919a2fd3784",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "45d746b1-b458-4234-9c1e-d0e586507319",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        288,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Always call this tool to provide file URL from S3\nThis tool will return proper link for downloading\nIt is critical to bypass returned URL AS IS to user. Never change it.",
+        "workflowId": {
+          "__rl": true,
+          "value": "74EJzqdZY0ROUtsJ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/74EJzqdZY0ROUtsJ",
+          "cachedResultName": "S3 download link (adm)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fileName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fileName', ``, 'string') }}",
+            "bucket": "ag-hk-01"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "bucket",
+              "displayName": "bucket",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fileName",
+              "displayName": "fileName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        320
+      ],
+      "id": "b6b3fc86-a2d9-4564-85f2-8beac9ec1646",
+      "name": "S3 download link"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "bucketName": "ag-hk-01",
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.s3Tool",
+      "typeVersion": 1,
+      "position": [
+        704,
+        -64
+      ],
+      "id": "77ca5d54-3957-4bf0-8290-30714894238f",
+      "name": "Files in S3",
+      "credentials": {
+        "s3": {
+          "id": "9NcBmnzlrGQouBVq",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Это инструмент для поиска по конкретному документу (documentId)",
+        "workflowId": {
+          "__rl": true,
+          "value": "mrqoAeYy1XRjOOTo",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/mrqoAeYy1XRjOOTo",
+          "cachedResultName": "AG-HK-01 (Search in document)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "textToSearch": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('textToSearch', ``, 'string') }}",
+            "collection": "ag-hk-01",
+            "documentId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('documentId', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "collection",
+              "displayName": "collection",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "documentId",
+              "displayName": "documentId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "textToSearch",
+              "displayName": "textToSearch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        112
+      ],
+      "id": "7f6e1a1d-da0e-4c46-88d2-957d27123cf6",
+      "name": "Search in document"
+    },
+    {
+      "parameters": {
+        "description": "Получить список релевантных документов (documentId, filename) доступных в базе знаний",
+        "workflowId": {
+          "__rl": true,
+          "value": "fPzsuaHfckObWa2V",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/fPzsuaHfckObWa2V",
+          "cachedResultName": "AG-HK-01 (List documents in knowledge base)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "collection": "ag-hk-01",
+            "textToSearch": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('textToSearch', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "collection",
+              "displayName": "collection",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "textToSearch",
+              "displayName": "textToSearch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        144
+      ],
+      "id": "2f764cb5-2db7-4396-a08a-501b1824058f",
+      "name": "Call 'AG-HK-01 (List documents in knowledge base)'"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -224,
+        -128
+      ],
+      "id": "9395f037-6b8f-4f66-82ea-490a2c59ae3d",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8db03adf-5216-46e6-83c3-bdd8b4643523",
+              "name": "diagnose",
+              "value": "={{ $json }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -400,
+        -288
+      ],
+      "id": "ebfd1e77-1cd7-49d2-8bc7-ce1c307ebe59",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n    \"vehicle_id\": \"M333YK47\",\n    \"session_id\": \"S-0005\",\n    \"status\": \"anomaly\",\n    \"anomaly_type\": \"F08\",\n    \"anomaly_title\": \"Дизельная топливоподача\",\n    \"anomaly_score\": 0.76,\n    \"confidence\": 0.73,\n    \"signal_quality\": \"good\",\n    \"description\": \"Жёсткая работа с резким стуком в цилиндрах, дымный выхлоп\",\n    \"model_version\": \"mock-v1\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -640,
+        -736
+      ],
+      "id": "1085ab17-4e34-4b4c-996d-cca5adf47f0f",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0cebd8f-58b9-4658-bb5e-e2f8a8e699d2",
+              "name": "vehicle_id",
+              "value": "={{ $json.body.vehicle_id || \"M333YK47\" }}",
+              "type": "string"
+            },
+            {
+              "id": "d1bcda68-b621-42d8-996b-d05f0fb381c9",
+              "name": "session_id",
+              "value": "={{ $json.body.session_id || \"S-0005\" }}",
+              "type": "string"
+            },
+            {
+              "id": "a2b1aecf-d0e9-4f55-bc1d-db58aad281e0",
+              "name": "engine_model",
+              "value": "={{ $json.body.engine_model || \"ЯМЗ-236М2\" }}",
+              "type": "string"
+            },
+            {
+              "id": "5ac7b999-004d-4e14-98d3-5c4abce4afa2",
+              "name": "chat_input",
+              "value": "={{ $json.body.chatInput || $json.body.message || \"Сформируй заключение по результатам диагностики, а так же дай рекомендации по исправлению неисправностей (если они обнаружены) на основе данных из документации по соответсвующему двигателю. Сформируй заявку.\" }}",
+              "type": "string"
+            },
+            {
+              "id": "36b059de-aff7-4cee-bbc9-7cf559028708",
+              "name": "client_id",
+              "value": "={{ $json.body.sessionId || $json.body.client_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -752,
+        -112
+      ],
+      "id": "eb06781f-8c92-4e50-a18f-4f9fa047e3e6",
+      "name": "Set workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://176.123.167.242:8001/diagnose",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vehicle_id",
+              "value": "={{ $json.vehicle_id }}"
+            },
+            {
+              "name": "session_id",
+              "value": "={{ $json.session_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -560,
+        -288
+      ],
+      "id": "86722967-270e-4e02-bad4-534964eb2e45",
+      "name": "Get diagnose"
+    },
+    {
+      "parameters": {
+        "toolDescription": "отправка заявки на сервер (заведение заявки)",
+        "method": "POST",
+        "url": "http://176.123.167.242:8002/tickets",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('JSON', ``, 'json') }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        384,
+        112
+      ],
+      "id": "df0f2169-e277-4534-a497-b25974668fa8",
+      "name": "Create Ticket"
+    },
+    {
+      "parameters": {
+        "description": "Call this tool to get text description of an image file (png, jpg, etc...)\nYou can pass files separatetly or all at once (file names should be comma + spase separated, like \"filename1, filename2, ... etc\")\nPass filename only.",
+        "workflowId": {
+          "__rl": true,
+          "value": "SZJ9mu7UHQlLz3hQ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/SZJ9mu7UHQlLz3hQ",
+          "cachedResultName": "AG-HK-01 (Image Processor)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sessionId": "={{$json.client_id}}",
+            "chatInput": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('chatInput', ``, 'string') }}",
+            "userId": "=hackathon@develonica.ru",
+            "userName": "=ag-hk-01",
+            "userEmail": "=hackathon@develonica.ru",
+            "fileName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fileName', ``, 'string') }}",
+            "bucket": "ag-hk-01"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "chatInput",
+              "displayName": "chatInput",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "userName",
+              "displayName": "userName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "userEmail",
+              "displayName": "userEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "bucket",
+              "displayName": "bucket",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fileName",
+              "displayName": "fileName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        176,
+        288
+      ],
+      "id": "9bb0916f-5ff8-44ff-b0e6-7ef701e32fd5",
+      "name": "Image Processor"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.last().json\nconst binaryData = $input.last().binary\n\nlet output = []\n\n// Проверяем есть ли бинарные данные\nif (binaryData && Object.keys(binaryData).length > 0) {\n  // Обрабатываем файлы если они есть\n  Object.keys(binaryData).forEach( b => {\n    // Добавляем реальное имя файла в body\n    const enrichedData = {\n      ...data,\n      body: {\n        ...data.body,\n        fileName: binaryData[b].fileName,\n      }\n    }\n    \n    output.push({\n      json: enrichedData,\n      binary: { data: binaryData[b]}\n    })\n  })\n} else {\n  // Возвращаем исходный запрос без изменений\n  output.push({\n    json: data,\n    binary: $input.last().binary\n  })\n}\n\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        -464
+      ],
+      "id": "e31f78d4-ab7c-409d-9490-eb8e6558322c",
+      "name": "Split by files"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "=ag-hk-01",
+        "fileName": "={{ encodeURIComponent($json.body.fileName) }}",
+        "additionalFields": {}
+      },
+      "id": "58b3cc19-b9d7-45d3-9812-e19fca61a98e",
+      "name": "Upload a file2",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -464
+      ],
+      "credentials": {
+        "s3": {
+          "id": "9NcBmnzlrGQouBVq",
+          "name": "S3 account"
+        }
+      },
+      "continueOnFail": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set workflow",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split by files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model with LiteLLM": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3 download link": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "Files in S3": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "Search in document": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'AG-HK-01 (List documents in knowledge base)'": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set workflow": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Get diagnose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get diagnose": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ticket": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Processor": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split by files": {
+      "main": [
+        [
+          {
+            "node": "Upload a file2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f3f439c3-d0cd-4113-92b7-522a46c33abd",
+  "meta": {
+    "instanceId": "ec30a50ab6e773d51acd8737347c860aaf52b82467765af2156b1a76db7c6452"
+  },
+  "nodeGroups": [],
+  "id": "uTJxMclTSF4ypLct",
+  "tags": []
+}
